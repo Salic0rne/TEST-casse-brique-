@@ -106,8 +106,8 @@ class Menu:
             k = self.anim[i]
             sel = i == self.sel
             text = item.label
-            if item.value:
-                v = item.value()
+            v = item.value() if item.value else ""
+            if v:
                 text = "%s   %s" % (item.label, ("< %s >" % v) if sel else v)
             self.rects.append(pygame.Rect(self.cx - self.width // 2, y - self.spacing // 2,
                                           self.width, self.spacing))

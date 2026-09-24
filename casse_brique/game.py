@@ -38,6 +38,7 @@ def fmt_score(n):
 class GameScene:
     def __init__(self, app, level=0):
         self.app = app
+        self.start_level = level
         self.audio, self.fx, self.art = app.audio, app.fx, app.art
         self.font, self.parts, self.bg = app.font, app.particles, app.bg
         self.rng = random.Random()
@@ -167,6 +168,10 @@ class GameScene:
             self.pause()
 
     def press_fire(self):
+        if self.state == "intro" and self.state_t > 0.4:
+            # on peut écourter l'arrivée des briques
+            self.state_t = max(self.state_t, 2.2 + max((b.delay for b in self.bricks), default=0.0))
+            return
         if self.state in ("ready", "play") and any(b.stuck for b in self.balls if b.alive):
             self.launch()
         elif self.state == "play" and "L" in self.effects:
@@ -184,12 +189,23 @@ class GameScene:
         self.paused = False
         self.audio.set_music_mode("game" if self.state == "play" else "intro")
 
+    def commit_score(self):
+        """Enregistre le record même si la partie est abandonnée en cours de route."""
+        s = self.app.settings
+        if self.score > s.best_score:
+            s.best_score = self.score
+        s.best_level = max(s.best_level, self.level + 1)
+        s.save()
+
     def restart(self):
         self.paused = False
-        self.app.goto(lambda: GameScene(self.app, 0))
+        self.commit_score()
+        start = self.start_level
+        self.app.goto(lambda: GameScene(self.app, start))
 
     def quit_to_menu(self):
         self.paused = False
+        self.commit_score()
         from .scenes import TitleScene
         self.app.goto(lambda: TitleScene(self.app))
 

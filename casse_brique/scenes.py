@@ -76,13 +76,15 @@ class TitleScene:
         app.particles.clear()
         app.fx.reset()
         self.mode = "main"
+        self.start_level = 0
         self.logo = Logo(app.font)
         self.main_menu = Menu(app, [
-            MenuItem("JOUER", self.play),
+            MenuItem("JOUER", self.play, adjust=self.adjust_start,
+                     value=lambda: "NIVEAU %d" % (self.start_level + 1) if self.app.settings.best_level > 1 else ""),
             MenuItem("OPTIONS", lambda: self.set_mode("options")),
             MenuItem("COMMANDES", lambda: self.set_mode("help")),
             MenuItem("QUITTER", app.quit),
-        ], WIDTH // 2, 468, spacing=50, size=24, accent=ACCENT, width=380)
+        ], WIDTH // 2, 468, spacing=50, size=24, accent=ACCENT, width=440)
         s = app.settings
         self.options_menu = Menu(app, [
             MenuItem("MUSIQUE", adjust=lambda d: self.adjust_volume("music_volume", d),
@@ -113,7 +115,13 @@ class TitleScene:
 
     def play(self):
         from .game import GameScene
-        self.app.goto(lambda: GameScene(self.app, 0))
+        start = self.start_level
+        self.app.goto(lambda: GameScene(self.app, start))
+
+    def adjust_start(self, d):
+        """Choix du niveau de départ parmi ceux déjà atteints."""
+        top = max(1, self.app.settings.best_level)
+        self.start_level = (self.start_level + d) % top
 
     def adjust_volume(self, attr, d):
         s = self.app.settings
@@ -210,7 +218,7 @@ class TitleScene:
         if self.mode == "options":
             panel = pygame.Rect(WIDTH // 2 - 320, 352, 640, 316)
         else:
-            panel = pygame.Rect(WIDTH // 2 - 220, 424, 440, 196)
+            panel = pygame.Rect(WIDTH // 2 - 250, 424, 500, 196)
         dim = (58, 50, 80) if self.mode == "options" else (96, 86, 120)
         S.blend_fill(canvas, dim, panel)
         glow.dim(panel, (70, 70, 70) if self.mode == "options" else (120, 120, 120))

@@ -260,6 +260,29 @@ class FlowTests(unittest.TestCase):
         step(90)
         self.assertIsNotNone(g.over_menu)
 
+    def test_start_level_choice_and_intro_skip(self):
+        from casse_brique.scenes import TitleScene
+        APP.settings.best_level = 4
+        APP.scene = TitleScene(APP)
+        step(10)
+        APP.scene.on_action("right")
+        APP.scene.on_action("right")
+        APP.scene.on_action("confirm")
+        step(60)
+        g = APP.scene
+        self.assertEqual(g.level, 2)
+        self.assertEqual(g.state, "intro")
+        g.on_action("confirm")
+        step(2)
+        self.assertEqual(g.state, "ready")
+
+    def test_abandoned_game_keeps_record(self):
+        g = new_game(0)
+        APP.settings.best_score = 10
+        g.score = 4321
+        g.commit_score()
+        self.assertEqual(Settings.load().best_score, 4321)
+
     def test_level_clear_moves_to_next_level(self):
         g = new_game(0)
         step(160)

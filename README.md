@@ -42,6 +42,8 @@ est générée en arrière-plan pendant l'écran titre.
   chaque brique monte sur une gamme pentatonique.
 - Une vie bonus tous les 30 000 points. Les niveaux 1 à 10 sont dessinés à la main,
   puis le **mode infini** génère des tableaux symétriques de plus en plus corsés.
+- Dans le menu, `←` `→` sur **JOUER** permet de repartir de n'importe quel niveau déjà
+  atteint. Un clic pendant l'arrivée des briques écourte l'introduction.
 
 ### Briques
 

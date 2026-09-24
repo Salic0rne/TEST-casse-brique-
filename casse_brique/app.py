@@ -125,6 +125,9 @@ class App:
             self.audio.play("whoosh")
 
     def quit(self):
+        commit = getattr(self.scene, "commit_score", None)
+        if commit:
+            commit()
         self.settings.save()
         self.running = False
 
