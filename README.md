@@ -12,11 +12,24 @@ et une bande-son entièrement **synthétisée par le code** (aucun fichier image
 
 ## Lancer le jeu
 
-Python 3.9 ou plus récent.
+### Sur Mac : un double-clic
+
+Double-cliquez sur **`jouer.command`** dans le Finder. Une fenêtre Terminal s'ouvre : au
+premier lancement, elle prépare Python et installe les dépendances (une minute environ,
+connexion internet nécessaire) ; les fois suivantes, le jeu démarre directement.
+
+Si le dossier a été téléchargé en ZIP depuis un navigateur, macOS peut bloquer ce fichier
+la première fois : faites clic droit → **Ouvrir**, puis confirmez.
+
+### En ligne de commande (Mac, Linux, Windows)
+
+Python 3.9 ou plus récent. Sur Mac et Linux la commande s'appelle `python3` (sur Windows : `py`).
 
 ```bash
-pip install -r requirements.txt
-python main.py            # ou : python -m casse_brique
+python3 -m venv .venv
+source .venv/bin/activate      # Windows : .venv\Scripts\activate
+python -m pip install -r requirements.txt
+python main.py                 # ou : python -m casse_brique
 ```
 
 `pygame-ce` est recommandé (bien plus rapide pour les effets de mélange) ; le `pygame`
