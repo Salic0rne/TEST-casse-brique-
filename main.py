@@ -1,6 +1,9 @@
 """Lance PRISMA, le casse-brique néon :  python main.py"""
 
+import os
 import sys
+
+os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
 try:
     import numpy  # noqa: F401
