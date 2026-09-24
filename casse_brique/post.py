@@ -6,6 +6,7 @@ import random
 import numpy as np
 import pygame
 
+from .surf import blend_fill
 from .util import clamp
 
 
@@ -76,8 +77,8 @@ class GlowBuffer:
     def dim(self, rect, color):
         """Assombrit une zone du tampon (ex. : la vitre de l'aire de jeu)."""
         s = self.inv
-        self.surf.fill(color, (int(rect[0] * s), int(rect[1] * s), int(rect[2] * s + 0.999),
-                               int(rect[3] * s + 0.999)), special_flags=pygame.BLEND_RGB_MULT)
+        blend_fill(self.surf, color, (int(rect[0] * s), int(rect[1] * s), int(rect[2] * s + 0.999),
+                                      int(rect[3] * s + 0.999)))
 
     def composite(self, target, strength=1.0):
         sw, sh = self.sw, self.sh
@@ -86,11 +87,11 @@ class GlowBuffer:
         pygame.transform.smoothscale(self.half, (sw, sh), self.acc)
         pygame.transform.smoothscale(self.quarter, (sw, sh), self.tmp)
         self.acc.blit(self.tmp, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-        self.surf.fill((110, 110, 110), special_flags=pygame.BLEND_RGB_MULT)
+        blend_fill(self.surf, (110, 110, 110))
         self.acc.blit(self.surf, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
         if strength < 0.99:
             v = int(255 * clamp(strength, 0, 1))
-            self.acc.fill((v, v, v), special_flags=pygame.BLEND_RGB_MULT)
+            blend_fill(self.acc, (v, v, v))
         pygame.transform.smoothscale(self.acc, self.size, self.full)
         target.blit(self.full, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
@@ -131,10 +132,10 @@ class Post:
         if a < 1:
             return
         self.tmp_r.blit(canvas, (0, 0))
-        self.tmp_r.fill((255, 0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        blend_fill(self.tmp_r, (255, 0, 0))
         self.tmp_b.blit(canvas, (0, 0))
-        self.tmp_b.fill((0, 0, 255), special_flags=pygame.BLEND_RGB_MULT)
-        canvas.fill((0, 255, 0), special_flags=pygame.BLEND_RGB_MULT)
+        blend_fill(self.tmp_b, (0, 0, 255))
+        blend_fill(canvas, (0, 255, 0))
         canvas.blit(self.tmp_r, (-a, 0), special_flags=pygame.BLEND_RGB_ADD)
         canvas.blit(self.tmp_b, (a, int(a * 0.4)), special_flags=pygame.BLEND_RGB_ADD)
 
@@ -159,7 +160,7 @@ class Post:
         if k <= 0.01:
             return
         c = (int(color[0] * k), int(color[1] * k), int(color[2] * k))
-        canvas.fill(c, special_flags=pygame.BLEND_RGB_ADD)
+        blend_fill(canvas, c, flag=pygame.BLEND_RGB_ADD)
 
     def crt_pass(self, canvas, crt=True):
         canvas.blit(self.crt if crt else self.vignette, (0, 0), special_flags=pygame.BLEND_RGB_MULT)

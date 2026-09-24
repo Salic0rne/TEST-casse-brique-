@@ -11,6 +11,7 @@ os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "linear")
 import pygame  # noqa: E402
 
 from .config import FPS, HEIGHT, TITLE, WIDTH  # noqa: E402
+from .surf import blend_fill  # noqa: E402
 
 KEY_ACTIONS = {
     pygame.K_UP: "up", pygame.K_w: "up", pygame.K_z: "up",
@@ -52,6 +53,10 @@ class App:
         self.time = 0.0
         self.running = True
         self.show_fps = False
+        # qualité adaptative : si la machine peine, on coupe les effets les plus coûteux
+        self.low_quality = False
+        self._frame_ema = 1.0 / FPS
+        self._slow_time = 0.0
         self.joy_axis = 0.0
         self.joy_fire = False
         self._joy_nav = 0
@@ -197,8 +202,18 @@ class App:
             self.scene.on_event(e)
 
     # ------------------------------------------------------------------ boucle
+    def _watch_performance(self, dt):
+        self._frame_ema += (dt - self._frame_ema) * 0.05
+        if not self.low_quality and self.transition is None:
+            self._slow_time = self._slow_time + dt if self._frame_ema > 1.0 / 45.0 else 0.0
+            if self._slow_time > 4.0:
+                self.low_quality = True
+                self.particles.MAX_SPARKS = 500
+
     def step(self, dt, events=None):
         """Une image : entrées, mise à jour, rendu. `events` permet de piloter le jeu en test."""
+        if events is None:
+            self._watch_performance(dt)
         dt = min(dt, 1.0 / 20.0)
         self.time += dt
         self.mouse_idle += dt
@@ -226,7 +241,7 @@ class App:
         self.scene.draw(canvas, glow)
         glow.composite(canvas)
         fx = self.fx
-        if fx.chroma > 0.5:
+        if fx.chroma > 0.5 and not self.low_quality:
             self.post.chromatic(canvas, fx.chroma)
         if fx.glitch > 0.02:
             self.post.glitch(canvas, fx.glitch)
@@ -236,7 +251,7 @@ class App:
             k = t / 0.3 if t < 0.3 else 1.0 - (t - 0.3) / 0.3
             k = max(0.0, min(1.0, k))
             v = int(255 * (1.0 - k))
-            canvas.fill((v, v, v), special_flags=pygame.BLEND_RGB_MULT)
+            blend_fill(canvas, (v, v, v))
             self.post.glitch(canvas, k * 0.6)
         self.post.crt_pass(canvas, self.settings.crt)
         if getattr(self.scene, "show_cursor", False) or getattr(self.scene, "paused", False) or \

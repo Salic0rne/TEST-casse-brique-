@@ -284,8 +284,9 @@ class AudioTests(unittest.TestCase):
 
     def test_music_loop_stems(self):
         from casse_brique import audio as A
-        stems, spectrum, step_len = A.generate_music()
-        n = step_len * 16 * len(A.PROG)
+        spec = A.TRACKS[1]
+        stems, spectrum, step_len = A.generate_music(spec)
+        n = step_len * 16 * len(spec["prog"])
         mix = sum(stems.values())
         for name, x in stems.items():
             self.assertEqual(x.shape, (n, 2), name)

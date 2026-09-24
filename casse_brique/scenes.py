@@ -9,7 +9,7 @@ from . import surf as S
 from .config import HEIGHT, HORIZON, VERSION, WIDTH
 from .sprites import ARMOR, BOMB, HARD, METAL, NORMAL, POWERUPS, PRISM
 from .ui import Menu, MenuItem, corner_brackets
-from .util import clamp, ease_out_back, ease_out_cubic, hsv, lighten, scale
+from .util import clamp, ease_out_cubic, hsv, lighten, scale
 
 ACCENT = (255, 60, 200)
 CYAN = (0, 230, 255)
@@ -36,7 +36,7 @@ class Logo:
         self.tmp_glow.blit(self.edge.glow, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         if alpha < 255:
             v = alpha
-            self.tmp_glow.fill((v, v, v), special_flags=pygame.BLEND_RGB_MULT)
+            S.blend_fill(self.tmp_glow, (v, v, v))
         canvas.blit(self.tmp_glow, (px, py), special_flags=pygame.BLEND_RGB_ADD)
         tube = self.edge.tube.copy()
         tube.blit(self.rainbow, (0, 0), (off + 60, 0, w, self.h), special_flags=pygame.BLEND_RGB_MULT)
@@ -71,6 +71,7 @@ class TitleScene:
         self.t = 0.0
         self.rng = random.Random()
         app.bg.set_theme(0)
+        app.audio.set_track(0)
         app.audio.set_music_mode("menu")
         app.particles.clear()
         app.fx.reset()
@@ -211,7 +212,7 @@ class TitleScene:
         else:
             panel = pygame.Rect(WIDTH // 2 - 220, 424, 440, 196)
         dim = (58, 50, 80) if self.mode == "options" else (96, 86, 120)
-        canvas.fill(dim, panel, special_flags=pygame.BLEND_RGB_MULT)
+        S.blend_fill(canvas, dim, panel)
         glow.dim(panel, (70, 70, 70) if self.mode == "options" else (120, 120, 120))
         corner_brackets(canvas, panel, scale(menu.accent, 0.9), 14, 2)
         if self.mode == "options":
@@ -228,7 +229,8 @@ class TitleScene:
         hint = "HAUT / BAS  ·  ENTRÉE  ·  SOURIS" if self.mode == "main" else \
             "GAUCHE / DROITE : RÉGLER  ·  ÉCHAP : RETOUR"
         app.font.render(hint, 11, foot, glow=0.3, spacing=1.4).draw(canvas, WIDTH // 2, 690)
-        app.font.render("V" + VERSION, 10, (120, 110, 160), glow=0.2).draw(canvas, WIDTH - 40, 24, "midright")
+        app.font.render("VERSION " + VERSION, 11, (130, 120, 175), glow=0.2, spacing=1.6).draw(
+            canvas, WIDTH - 40, 24, "midright")
         if app.audio.enabled and not app.audio.music_ready:
             dots = "." * (1 + int(app.time * 3) % 3)
             app.font.render("SYNTHÈSE DE LA MUSIQUE" + dots, 10, (190, 170, 240), glow=0.4).draw(
@@ -239,7 +241,7 @@ class TitleScene:
         app = self.app
         font = app.font
         panel = pygame.Rect(60, 40, WIDTH - 120, HEIGHT - 80)
-        canvas.fill((70, 62, 92), panel, special_flags=pygame.BLEND_RGB_MULT)
+        S.blend_fill(canvas, (70, 62, 92), panel)
         glow.dim(panel, (90, 90, 90))
         corner_brackets(canvas, panel, ACCENT, 16, 2)
         font.render("COMMANDES", 30, ACCENT, core=(255, 255, 255), skew=0.12).draw(canvas, 340, 92)

@@ -4,6 +4,7 @@ import math
 
 import pygame
 
+from .surf import blend_fill
 from .util import clamp, ease_out_cubic, lighten, scale
 
 
@@ -114,7 +115,7 @@ class Menu:
                 w = self.width * ease_out_cubic(k)
                 x0 = self.cx - w / 2
                 band = pygame.Rect(int(x0), int(y - self.size * 0.95), int(w), int(self.size * 1.9))
-                canvas.fill(scale(acc, 0.11 * k), band, special_flags=pygame.BLEND_RGB_ADD)
+                blend_fill(canvas, scale(acc, 0.11 * k), band, pygame.BLEND_RGB_ADD)
                 pygame.draw.line(canvas, scale(acc, k), band.topleft, band.topright, 1)
                 pygame.draw.line(canvas, scale(acc, k), band.bottomleft, band.bottomright, 1)
                 glow.rect(band.x, band.y, band.w, band.h, scale(acc, 0.22 * k))
@@ -164,7 +165,7 @@ def draw_bar(canvas, glow, x, y, w, h, frac, c1, c2, back=(30, 20, 50)):
 def card(canvas, glow, rect, accent, dim=(52, 46, 72)):
     """Carte de verre sombre avec liseré néon (lisibilité du HUD sur le décor)."""
     rect = pygame.Rect(rect)
-    canvas.fill(dim, rect, special_flags=pygame.BLEND_RGB_MULT)
+    blend_fill(canvas, dim, rect)
     glow.dim(rect, (80, 80, 80))
     pygame.draw.rect(canvas, scale(accent, 0.3), rect, 1)
     corner_brackets(canvas, rect, scale(accent, 0.95), 9, 2)

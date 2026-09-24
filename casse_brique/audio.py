@@ -7,8 +7,10 @@ parallèle, dont le mixage évolue selon la situation (menu, jeu, pause...).
 """
 
 import math
+import random
 import threading
 import time
+from collections import deque
 
 import numpy as np
 import pygame
@@ -207,25 +209,28 @@ def build_sfx():
     rng = np.random.default_rng(1234)
     sfx = {}
 
-    n = _n(0.24)
-    f = sweep(560, 240, n, 0.25)
-    x = sine(f, n) * env_exp(n, 0.08) + 0.35 * filt(pulse(f / 2, n, 0.3), hi=2200) * env_exp(n, 0.05)
-    x += filt(noise(n, rng), lo=2500) * env_exp(n, 0.004) * 0.6
-    sfx["paddle"] = (x, 0.75)
+    # sons fréquents : plusieurs variantes de hauteur pour éviter la monotonie (nom#i)
+    for i, k in enumerate((1.0, 1.06, 0.95)):
+        n = _n(0.24)
+        f = sweep(560 * k, 240 * k, n, 0.25)
+        x = sine(f, n) * env_exp(n, 0.08) + 0.35 * filt(pulse(f / 2, n, 0.3), hi=2200) * env_exp(n, 0.05)
+        x += filt(noise(n, rng), lo=2500) * env_exp(n, 0.004) * 0.6
+        sfx["paddle#%d" % i] = (x, 0.75)
 
-    n = _n(0.09)
-    x = sine(1850, n) * env_exp(n, 0.02) + 0.5 * sine(2780, n) * env_exp(n, 0.012)
-    x += filt(noise(n, rng), lo=3000) * env_exp(n, 0.005) * 0.7
-    sfx["wall"] = (x, 0.42)
+        n = _n(0.09)
+        x = sine(1850 * k, n) * env_exp(n, 0.02) + 0.5 * sine(2780 * k, n) * env_exp(n, 0.012)
+        x += filt(noise(n, rng), lo=3000) * env_exp(n, 0.005) * 0.7
+        sfx["wall#%d" % i] = (x, 0.42)
 
     for i in range(16):
         sfx["brick%d" % i] = (_brick_note(i), 0.62)
 
-    n = _n(0.2)
-    x = sum(a * sine(1250 * r, n) * env_exp(n, d) for r, a, d in
-            ((1.0, 1.0, 0.12), (2.76, 0.6, 0.07), (5.4, 0.35, 0.04), (8.93, 0.2, 0.025)))
-    x += filt(noise(n, rng), lo=4000) * env_exp(n, 0.006) * 0.8
-    sfx["hit"] = (x, 0.5)
+    for i, k in enumerate((1.0, 1.12, 0.9)):
+        n = _n(0.2)
+        x = sum(a * sine(1250 * k * r, n) * env_exp(n, d) for r, a, d in
+                ((1.0, 1.0, 0.12), (2.76, 0.6, 0.07), (5.4, 0.35, 0.04), (8.93, 0.2, 0.025)))
+        x += filt(noise(n, rng), lo=4000) * env_exp(n, 0.006) * 0.8
+        sfx["hit#%d" % i] = (x, 0.5)
 
     n = _n(0.8)
     x = sum(a * sine(310 * r, n) * env_exp(n, d) for r, a, d in
@@ -417,33 +422,68 @@ def build_sfx():
 
 # =========================================================================== musique
 
-BPM = 100
-PROG = ["Am", "F", "C", "G", "Am", "F", "C", "G", "F", "G", "Em", "Am", "F", "G", "Am", "E"]
-BASS_ROOT = {"Am": 45, "F": 41, "C": 48, "G": 43, "Em": 40, "E": 40}
-PAD = {"Am": (57, 60, 64), "F": (57, 60, 65), "C": (55, 60, 64), "G": (55, 59, 62),
-       "Em": (55, 59, 64), "E": (56, 59, 64)}
-ARP = {"Am": (69, 72, 76, 81), "F": (69, 72, 77, 81), "C": (67, 72, 76, 79), "G": (67, 71, 74, 79),
-       "Em": (67, 71, 76, 79), "E": (68, 71, 76, 80)}
-# mélodie de la seconde moitié : (mesure, double-croche, durée en doubles-croches, note)
-LEAD = [
-    (8, 0, 4, 69), (8, 4, 4, 72), (8, 8, 8, 76),
-    (9, 0, 4, 74), (9, 4, 4, 71), (9, 8, 8, 67),
-    (10, 0, 6, 76), (10, 6, 2, 74), (10, 8, 4, 71), (10, 12, 4, 67),
-    (11, 0, 16, 69),
-    (12, 0, 4, 72), (12, 4, 4, 76), (12, 8, 4, 77), (12, 12, 4, 76),
-    (13, 0, 4, 74), (13, 4, 4, 79), (13, 8, 8, 74),
-    (14, 0, 4, 76), (14, 4, 4, 72), (14, 8, 8, 69),
-    (15, 0, 8, 68), (15, 8, 4, 71), (15, 12, 4, 76),
+# accords : basse, nappe (3 notes), arpège (4 notes) — en notes MIDI
+CHORDS = {
+    "Am": (45, (57, 60, 64), (69, 72, 76, 81)),
+    "F": (41, (57, 60, 65), (69, 72, 77, 81)),
+    "C": (48, (55, 60, 64), (67, 72, 76, 79)),
+    "G": (43, (55, 59, 62), (67, 71, 74, 79)),
+    "Em": (40, (55, 59, 64), (67, 71, 76, 79)),
+    "E": (40, (56, 59, 64), (68, 71, 76, 80)),
+    "Dm": (38, (57, 62, 65), (69, 74, 77, 81)),
+}
+
+# deux morceaux qui alternent selon les niveaux ; la mélodie n'occupe que la seconde moitié :
+# (mesure, double-croche, durée en doubles-croches, note)
+TRACKS = [
+    {
+        "name": "NUIT NÉON", "bpm": 100, "transpose": 0, "seed": 7,
+        "prog": ["Am", "F", "C", "G", "Am", "F", "C", "G", "F", "G", "Em", "Am", "F", "G", "Am", "E"],
+        "bass": (0, 12, 0, 12, 0, 12, 0, 12),
+        "arp": (0, 1, 2, 3) * 4,
+        "lead": [
+            (8, 0, 4, 69), (8, 4, 4, 72), (8, 8, 8, 76),
+            (9, 0, 4, 74), (9, 4, 4, 71), (9, 8, 8, 67),
+            (10, 0, 6, 76), (10, 6, 2, 74), (10, 8, 4, 71), (10, 12, 4, 67),
+            (11, 0, 16, 69),
+            (12, 0, 4, 72), (12, 4, 4, 76), (12, 8, 4, 77), (12, 12, 4, 76),
+            (13, 0, 4, 74), (13, 4, 4, 79), (13, 8, 8, 74),
+            (14, 0, 4, 76), (14, 4, 4, 72), (14, 8, 8, 69),
+            (15, 0, 8, 68), (15, 8, 4, 71), (15, 12, 4, 76),
+        ],
+    },
+    {
+        "name": "HORIZON", "bpm": 112, "transpose": 3, "seed": 11,
+        "prog": ["Am", "F", "Dm", "E", "Am", "F", "G", "E", "F", "G", "Am", "Dm", "F", "G", "E", "E"],
+        "bass": (0, 0, 12, 0, 0, 12, 0, 12),
+        "arp": (0, 2, 1, 3, 2, 0, 3, 1) * 2,
+        "lead": [
+            (8, 0, 6, 72), (8, 6, 2, 74), (8, 8, 8, 77),
+            (9, 0, 6, 74), (9, 6, 2, 71), (9, 8, 8, 67),
+            (10, 0, 4, 76), (10, 4, 4, 72), (10, 8, 4, 69), (10, 12, 4, 72),
+            (11, 0, 12, 74), (11, 12, 4, 77),
+            (12, 0, 6, 81), (12, 6, 2, 79), (12, 8, 8, 77),
+            (13, 0, 6, 79), (13, 6, 2, 77), (13, 8, 8, 74),
+            (14, 0, 8, 76), (14, 8, 8, 80),
+            (15, 0, 16, 76),
+        ],
+    },
 ]
 STEMS = ("base", "drums", "lead")
 
 
-def generate_music(seed=7):
-    """Retourne (pistes {nom: tableau (N, 2)}, spectre (images, bandes), durée d'une double-croche)."""
-    rng = np.random.default_rng(seed)
-    step = int(round(SR * 60.0 / BPM / 4.0))
+def generate_music(spec=None):
+    """Synthétise un morceau en boucle parfaite.
+
+    Retourne (pistes {nom: tableau (N, 2)}, spectre (images, bandes), durée d'une double-croche).
+    """
+    spec = spec or TRACKS[0]
+    prog = spec["prog"]
+    tr = spec["transpose"]
+    rng = np.random.default_rng(spec["seed"])
+    step = int(round(SR * 60.0 / spec["bpm"] / 4.0))
     bar = step * 16
-    total = bar * len(PROG)
+    total = bar * len(prog)
 
     def place(buf, start, sig):
         start %= total
@@ -474,11 +514,11 @@ def generate_music(seed=7):
         return bass_cache[m]
 
     bass = np.zeros(total)
-    for b, ch in enumerate(PROG):
-        root = BASS_ROOT[ch]
-        for e in range(8):
+    for b, ch in enumerate(prog):
+        root = CHORDS[ch][0] + tr
+        for e, off in enumerate(spec["bass"]):
             vel = 1.0 if e % 2 == 0 else 0.78
-            place(bass, b * bar + e * 2 * step, bass_note(root + (12 if e % 2 else 0)) * vel)
+            place(bass, b * bar + e * 2 * step, bass_note(root + off) * vel)
 
     # -- nappes
     pad_cache = {}
@@ -488,15 +528,16 @@ def generate_music(seed=7):
             n = bar + _n(0.6)
             x = np.zeros((n, 2))
             env = env_adsr(n, 0.35, 0.5, 0.85, 0.6)
-            for m in PAD[ch]:
+            notes = [m + tr for m in CHORDS[ch][1]]
+            for m in notes:
                 for det, pan in ((-0.09, -0.7), (0.09, 0.7)):
                     x += stereo(saw(midi(m + det), n, ph0=rng.random()) * env, pan)
-            x += stereo(sine(midi(PAD[ch][0] - 12), n) * env * 0.8)
+            x += stereo(sine(midi(notes[0] - 12), n) * env * 0.8)
             pad_cache[ch] = filt(x, hi=1900, order=2) * 0.16
         return pad_cache[ch]
 
     pads = np.zeros((total, 2))
-    for b, ch in enumerate(PROG):
+    for b, ch in enumerate(prog):
         place(pads, b * bar, pad_chord(ch))
 
     # -- arpège
@@ -510,19 +551,20 @@ def generate_music(seed=7):
         return arp_cache[m]
 
     arp = np.zeros(total)
-    for b, ch in enumerate(PROG):
-        tones = ARP[ch]
-        vol = 0.55 if b < 8 else 0.33
-        for s in range(16):
-            m = tones[s % 4] + (12 if (s // 4) % 4 == 3 and s % 4 == 3 else 0)
+    half = len(prog) // 2
+    for b, ch in enumerate(prog):
+        tones = [m + tr for m in CHORDS[ch][2]]
+        vol = 0.55 if b < half else 0.33
+        for s, idx in enumerate(spec["arp"]):
+            m = tones[idx] + (12 if s == 15 else 0)
             accent = 1.0 if s % 4 == 0 else 0.72
             place(arp, b * bar + s * step, arp_note(m) * vol * accent)
 
     # -- mélodie
     lead = np.zeros(total)
-    for b, s, d, m in LEAD:
+    for b, s, d, m in spec["lead"]:
         n = step * d + _n(0.18)
-        f = midi(m)
+        f = midi(m + tr)
         t = _t(n)
         vib = 1.0 + 0.006 * np.sin(2 * np.pi * 5.5 * t) * np.clip((t - 0.18) / 0.2, 0, 1)
         raw = saw(f * vib, n) * 0.6 + pulse(f * vib * 1.003, n, 0.4) * 0.4
@@ -553,13 +595,14 @@ def generate_music(seed=7):
 
     drums = np.zeros((total, 2))
     snares = np.zeros(total)
-    for b in range(len(PROG)):
-        second = b >= 8
+    last = len(prog) - 1
+    for b in range(len(prog)):
+        second = b >= half
         for s in range(16):
             pos = b * bar + s * step
             if s % 4 == 0 or (second and s == 14 and b % 2 == 1):
                 place(drums, pos, stereo(kick))
-            if s in (4, 12) and not (b == 15 and s == 12):
+            if s in (4, 12) and not (b == last and s == 12):
                 place(snares, pos, snare)
             if s % 4 == 2:
                 place(drums, pos, stereo(hat, 0.25))
@@ -567,10 +610,10 @@ def generate_music(seed=7):
                 place(drums, pos, stereo(hat * 0.45, 0.35))
             if s == 14 and b % 2 == 1:
                 place(drums, pos, stereo(ohat, -0.2))
-        if b in (0, 8):
+        if b in (0, half):
             place(drums, b * bar, stereo(crash, -0.15))
     for k, f0 in enumerate((210, 175, 145, 120)):
-        place(drums, 15 * bar + (12 + k) * step, stereo(tom(f0), 0.5 - k * 0.33))
+        place(drums, last * bar + (12 + k) * step, stereo(tom(f0), 0.5 - k * 0.33))
 
     ir = reverb_ir(2.4, 2.2, rng)
     ir_short = reverb_ir(1.0, 0.9, rng, bright=6000)
@@ -580,7 +623,7 @@ def generate_music(seed=7):
     # -- compression « sidechain » au rythme de la grosse caisse
     beat = step * 4
     tb = np.arange(beat) / SR
-    duck = np.tile(1.0 - np.exp(-tb / 0.11), len(PROG) * 4)
+    duck = np.tile(1.0 - np.exp(-tb / 0.11), len(prog) * 4)
 
     def side(x, depth):
         g = 1.0 - depth * (1.0 - duck)
@@ -639,6 +682,34 @@ MIX_MODES = {
 }
 
 
+class _Track:
+    """Morceau prêt à jouer : trois pistes synchronisées sur des canaux réservés."""
+
+    def __init__(self, index, sounds, spectrum, step):
+        self.index = index
+        self.sounds = sounds
+        self.spectrum = spectrum
+        self.step = step
+        self.loop_len = step * 16 * len(TRACKS[index]["prog"])
+        self.channels = [pygame.mixer.Channel(index * len(STEMS) + i) for i in range(len(STEMS))]
+        self.start = 0.0
+        self.gain = 0.0
+        self.playing = False
+
+    def play(self):
+        for ch, snd in zip(self.channels, self.sounds):
+            ch.set_volume(0.0)
+            ch.play(snd, loops=-1)
+        self.start = time.perf_counter()
+        self.playing = True
+
+    def stop(self):
+        for ch in self.channels:
+            ch.stop()
+        self.playing = False
+        self.gain = 0.0
+
+
 class Audio:
     def __init__(self, sfx_volume=0.8, music_volume=0.6):
         global SR
@@ -647,19 +718,16 @@ class Audio:
         self.enabled = pygame.mixer.get_init() is not None
         self.sounds = {}
         self._last = {}
+        self._recent = deque()
         self._fmt = None
         self._channels = 2
-        self.music_ready = False
-        self._music_result = None
+        self._pending = []           # morceaux calculés par le fil de synthèse
         self._music_error = None
-        self._music_channels = []
-        self._music_sounds = []
-        self._music_start = 0.0
+        self.tracks = {}             # index -> _Track prêt
+        self.wanted = 0              # morceau demandé par le jeu
+        self.current = None          # morceau audible
         self._mix_target = dict(MIX_MODES["menu"])
         self._mix = {k: 0.0 for k in STEMS}
-        self.spectrum = None
-        self.step = 60.0 / BPM / 4.0
-        self.loop_len = self.step * 16 * len(PROG)
         self._clock0 = time.perf_counter()
         if not self.enabled:
             return
@@ -668,10 +736,15 @@ class Audio:
         self._fmt = fmt
         self._channels = channels
         pygame.mixer.set_num_channels(40)
-        pygame.mixer.set_reserved(len(STEMS))
+        pygame.mixer.set_reserved(len(STEMS) * len(TRACKS))
         for name, (x, peak) in build_sfx().items():
-            self.sounds[name] = self._make_sound(fade(normalize(x, peak)))
+            x = filt(x, lo=25, order=1)   # retire toute composante continue résiduelle
+            self.sounds.setdefault(name.split("#")[0], []).append(self._make_sound(fade(normalize(x, peak))))
         threading.Thread(target=self._music_worker, daemon=True).start()
+
+    @property
+    def music_ready(self):
+        return self.current is not None
 
     # ------------------------------------------------------------------ conversion
     def _make_sound(self, x):
@@ -701,13 +774,20 @@ class Audio:
     def play(self, name, vol=1.0, pan=0.0, min_gap=0.03):
         if not self.enabled or self.sfx_volume <= 0:
             return
-        snd = self.sounds.get(name)
-        if snd is None:
+        variants = self.sounds.get(name)
+        if not variants:
             return
         now = time.perf_counter()
         if now - self._last.get(name, 0.0) < min_gap:
             return
         self._last[name] = now
+        # quand beaucoup de sons se superposent, chacun est un peu atténué (évite la saturation)
+        recent = self._recent
+        while recent and now - recent[0] > 0.25:
+            recent.popleft()
+        vol /= 1.0 + 0.1 * len(recent)
+        recent.append(now)
+        snd = variants[0] if len(variants) == 1 else random.choice(variants)
         # Sound.play() respecte les canaux réservés à la musique (contrairement à find_channel)
         ch = snd.play()
         if ch is None:
@@ -721,51 +801,70 @@ class Audio:
 
     # ------------------------------------------------------------------ musique
     def _music_worker(self):
-        try:
-            self._music_result = generate_music()
-        except Exception as exc:  # la musique est facultative : le jeu reste jouable
-            self._music_error = exc
+        for i, spec in enumerate(TRACKS):
+            try:
+                self._pending.append((i, generate_music(spec)))
+            except Exception as exc:  # la musique est facultative : le jeu reste jouable
+                self._music_error = exc
+                return
 
     def set_music_mode(self, mode):
         self._mix_target = dict(MIX_MODES.get(mode, MIX_MODES["game"]))
 
+    def set_track(self, index):
+        """Choisit le morceau (fondu enchaîné dès qu'il est prêt)."""
+        self.wanted = index % len(TRACKS)
+
+    def _timing(self):
+        tr = self.tracks.get(self.current) if self.current is not None else None
+        if tr is not None:
+            return (time.perf_counter() - tr.start) % tr.loop_len, tr
+        step = 60.0 / TRACKS[0]["bpm"] / 4.0
+        return (time.perf_counter() - self._clock0) % (step * 256), None
+
     def music_time(self):
-        """Position (s) dans la boucle musicale, ou horloge virtuelle si pas de musique."""
-        if self.music_ready:
-            return (time.perf_counter() - self._music_start) % self.loop_len
-        return (time.perf_counter() - self._clock0) % self.loop_len
+        """Position (s) dans la boucle en cours, ou horloge virtuelle si pas de musique."""
+        return self._timing()[0]
 
     def beat_pulse(self):
         """1 sur chaque temps puis décroissance rapide : pour faire pulser le décor."""
-        beat = self.step * 4
-        tb = self.music_time() % beat
-        return math.exp(-tb / 0.16)
+        t, tr = self._timing()
+        beat = (tr.step if tr else 60.0 / TRACKS[0]["bpm"] / 4.0) * 4
+        return math.exp(-(t % beat) / 0.16)
 
     def spectrum_frame(self):
-        if self.spectrum is None:
+        t, tr = self._timing()
+        if tr is None:
             return None
-        i = int(self.music_time() * 30) % self.spectrum.shape[0]
-        return self.spectrum[i]
+        return tr.spectrum[int(t * 30) % tr.spectrum.shape[0]]
 
     def update(self, dt):
         if not self.enabled:
             return
-        if not self.music_ready and self._music_result is not None:
-            stems, spectrum, step = self._music_result
-            self._music_result = None
-            self._music_sounds = [self._make_sound(stems[name]) for name in STEMS]
-            self.spectrum = spectrum
-            self.step = step / SR
-            self.loop_len = self.step * 16 * len(PROG)
-            self._music_channels = [pygame.mixer.Channel(i) for i in range(len(STEMS))]
-            for ch in self._music_channels:
-                ch.set_volume(0.0)
-            for ch, snd in zip(self._music_channels, self._music_sounds):
-                ch.play(snd, loops=-1)
-            self._music_start = time.perf_counter()
-            self.music_ready = True
-        if self.music_ready:
-            k = 1.0 - math.exp(-dt * 3.0)
-            for i, name in enumerate(STEMS):
-                self._mix[name] += (self._mix_target[name] - self._mix[name]) * k
-                self._music_channels[i].set_volume(max(0.0, self._mix[name] * self.music_volume))
+        while self._pending:
+            i, (stems, spectrum, step) = self._pending.pop(0)
+            sounds = [self._make_sound(stems[name]) for name in STEMS]
+            self.tracks[i] = _Track(i, sounds, spectrum, step / SR)
+        # fondu enchaîné vers le morceau voulu (ou le premier disponible)
+        target = self.wanted if self.wanted in self.tracks else self.current
+        if target is None and self.tracks:
+            target = min(self.tracks)
+        if target is not None and target != self.current:
+            tr = self.tracks[target]
+            if not tr.playing:
+                tr.play()
+            self.current = target
+        k = 1.0 - math.exp(-dt * 3.0)
+        for name in STEMS:
+            self._mix[name] += (self._mix_target[name] - self._mix[name]) * k
+        fade_k = 1.0 - math.exp(-dt * 2.5)
+        for tr in self.tracks.values():
+            if not tr.playing:
+                continue
+            goal = 1.0 if tr.index == self.current else 0.0
+            tr.gain += (goal - tr.gain) * fade_k
+            if goal == 0.0 and tr.gain < 0.01:
+                tr.stop()
+                continue
+            for ch, name in zip(tr.channels, STEMS):
+                ch.set_volume(max(0.0, self._mix[name] * self.music_volume * tr.gain))

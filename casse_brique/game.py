@@ -7,15 +7,15 @@ import pygame
 
 from .config import (BALL_R, BALL_SPEED_HIT_STEP, BALL_SPEED_LEVEL_STEP, BALL_SPEED_MAX,
                      BALL_SPEED_START, BRICK_H, BRICK_W, COLS, EXTRA_LIFE_EVERY, GRID_LEFT,
-                     GRID_TOP, HEIGHT, MAX_BALLS, MAX_LIVES, PADDLE_H, PADDLE_KEY_SPEED, PADDLE_W,
+                     GRID_TOP, HEIGHT, MAX_BALLS, MAX_LIVES, PADDLE_KEY_SPEED, PADDLE_W,
                      PADDLE_W_NARROW, PADDLE_W_WIDE, PF_BOTTOM, PF_CX, PF_H, PF_LEFT, PF_RIGHT,
                      PF_TOP, PF_W, PHYSICS_DT, PITCH_X, PITCH_Y, START_LIVES, WIDTH)
 from .entities import Ball, Brick, Capsule, Laser, Paddle
 from .levels import get_level, level_count, parse_cell
-from .sprites import ARMOR, BOMB, HARD, MALUS, METAL, NORMAL, POWERUPS, PRISM
+from .sprites import ARMOR, BOMB, HARD, MALUS, METAL, POWERUPS, PRISM
+from .surf import blend_fill
 from .ui import Menu, MenuItem, card, draw_bar
-from .util import (approach, clamp, ease_in_cubic, ease_out_back, ease_out_cubic, hsv, lighten,
-                   mix, scale)
+from .util import approach, clamp, ease_in_cubic, ease_out_back, hsv, lighten, mix, scale
 
 TIMED = {"G": 18.0, "L": 14.0, "R": 12.0, "F": 9.0, "A": 15.0, "B": 15.0, "P": 11.0, "V": 10.0}
 DROP_WEIGHTS = {"G": 14, "M": 13, "L": 11, "R": 9, "F": 7, "A": 9, "B": 8, "♥": 3, "P": 8, "V": 7}
@@ -63,6 +63,7 @@ class GameScene:
         self.wall_flashes = []
         self.grid_flash = 0.0
         self.drops_since = 0
+        self.recent_pickups = []
         self.glint_t = 0.0
         self.shine_t = 0.0
         self.paused = False
@@ -112,6 +113,7 @@ class GameScene:
         self.base_speed = min(BALL_SPEED_MAX - 220.0, BALL_SPEED_START + index * BALL_SPEED_LEVEL_STEP)
         self.reset_ball()
         self.set_state("intro")
+        self.audio.set_track(index % 2)      # les deux morceaux alternent d'un niveau à l'autre
         self.audio.set_music_mode("intro")
         self.audio.play("whoosh")
 
@@ -741,7 +743,10 @@ class GameScene:
         p = self.paddle
         self.stats["bonus"] += 1
         self.add_score(100)
-        self.parts.text(p.x, p.top - 34, name, 18, color, life=1.1, vy=-55)
+        # plusieurs bonus attrapés coup sur coup : on empile leurs noms
+        self.recent_pickups = [t for t in self.recent_pickups if self.time - t < 0.5] + [self.time]
+        stack = len(self.recent_pickups) - 1
+        self.parts.text(p.x, p.top - 34 - 24 * stack, name, 18, color, life=1.1, vy=-55)
         self.parts.ring(cap.x, p.y, color, 80, life=0.4, width=3)
         self.parts.sparks_burst(cap.x, p.top, lighten(color, 0.3), 24, speed=(100, 380),
                                 angle=-math.pi / 2, spread=2.8, grav=350)
@@ -884,14 +889,13 @@ class GameScene:
 
     # ================================================================== rendu
     def draw(self, canvas, glow):
-        th = self.theme
         pulse = self.audio.beat_pulse()
         speed = 0.45 + min(1.6, self.chain * 0.035)
         self.bg.draw(canvas, glow, self.time, pulse=pulse, speed=speed, grid_boost=self.grid_flash * 0.6)
-        canvas.fill(PF_DIM, PF_RECT, special_flags=pygame.BLEND_RGB_MULT)
+        blend_fill(canvas, PF_DIM, PF_RECT)
         glow.dim(PF_RECT, PF_DIM)
         for r in (LEFT_PANEL, RIGHT_PANEL):
-            canvas.fill(PANEL_DIM, r, special_flags=pygame.BLEND_RGB_MULT)
+            blend_fill(canvas, PANEL_DIM, r)
             glow.dim(r, (150, 150, 150))
 
         ox, oy = self.fx.offset
@@ -1026,10 +1030,11 @@ class GameScene:
         spr.set_alpha(255)
         canvas.blit(spr, (p.x - w / 2 + ox, by + oy))
         k = p.flash
-        gcol = mix((0, 110, 150), (200, 240, 255), k)
+        gcol = mix((0, 110, 150), (80, 150, 190), k)
         glow.rect(p.left, p.top + p.bounce, p.w, p.h, gcol)
-        if k > 0.05:
-            canvas.blit(self.art.glow(int(40 + 30 * k), (60, 120, 160)), (p.x - 40 - 30 * k + ox, p.y - 40 - 30 * k + p.bounce + oy),
+        if k > 0.3:
+            r = int(30 + 20 * k)
+            canvas.blit(self.art.glow(r, (30, 70, 100)), (p.x - r + ox, p.y - r + p.bounce + oy),
                         special_flags=pygame.BLEND_RGB_ADD)
         if "A" in self.effects:
             col = (200, 110, 255)
@@ -1245,7 +1250,7 @@ class GameScene:
 
     def draw_pause(self, canvas, glow):
         dim = (52, 46, 68)
-        canvas.fill(dim, PF_RECT, special_flags=pygame.BLEND_RGB_MULT)
+        blend_fill(canvas, dim, PF_RECT)
         glow.dim(PF_RECT, dim)
         font = self.font
         nt = font.render("PAUSE", 64, self.theme.accent, core=(255, 255, 255), skew=0.15, glow=1.3)
@@ -1260,7 +1265,7 @@ class GameScene:
         k = clamp(t / 0.8, 0, 1)
         v = int(255 - 150 * k)
         dim = (v, int(v * 0.85), int(v * 1.0))
-        canvas.fill(dim, PF_RECT, special_flags=pygame.BLEND_RGB_MULT)
+        blend_fill(canvas, dim, PF_RECT)
         glow.dim(PF_RECT, dim)
         font = self.font
         go = font.render("GAME OVER", 72, (255, 40, 110), core=(255, 230, 240), skew=0.15, glow=1.4)

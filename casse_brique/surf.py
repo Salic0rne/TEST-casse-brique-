@@ -6,6 +6,34 @@ import numpy as np
 import pygame
 
 
+# --------------------------------------------------------------------------- remplissage mélangé
+
+_IS_CE = bool(getattr(pygame, "IS_CE", False))
+_scratch = None
+
+
+def blend_fill(target, color, rect=None, flag=pygame.BLEND_RGB_MULT):
+    """Remplissage avec mélange (MULT / ADD).
+
+    pygame-ce le fait très vite ; le pygame classique est ~30 fois plus lent pour
+    fill(special_flags=...), on passe alors par un blit depuis une surface unie.
+    """
+    if _IS_CE:
+        target.fill(color, rect, special_flags=flag)
+        return
+    global _scratch
+    r = target.get_rect() if rect is None else pygame.Rect(rect).clip(target.get_rect())
+    if r.w <= 0 or r.h <= 0:
+        return
+    if _scratch is None or _scratch.get_width() < r.w or _scratch.get_height() < r.h:
+        _scratch = pygame.Surface((max(r.w, 1280), max(r.h, 720)))
+        if pygame.display.get_surface() is not None:
+            _scratch = _scratch.convert()
+    area = (0, 0, r.w, r.h)
+    _scratch.fill(color, area)
+    target.blit(_scratch, r.topleft, area, special_flags=flag)
+
+
 # --------------------------------------------------------------------------- flou
 
 def _box_axis(a, r, axis):
@@ -182,13 +210,13 @@ def intensity(surf, k):
     """Copie d'une surface additive avec une intensité réduite (k dans [0, 1])."""
     out = surf.copy()
     v = max(0, min(255, int(255 * k)))
-    out.fill((v, v, v), special_flags=pygame.BLEND_RGB_MULT)
+    blend_fill(out, (v, v, v))
     return out
 
 
 def tint(surf, color):
     out = surf.copy()
-    out.fill(color, special_flags=pygame.BLEND_RGB_MULT)
+    blend_fill(out, color)
     return out
 
 

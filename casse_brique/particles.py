@@ -182,7 +182,7 @@ class Particles:
 
     def explosion(self, x, y, radius=110, color=(255, 150, 40)):
         r = self.rng
-        self.blob(x, y, (170, 150, 120), radius * 1.3, life=0.45, grow=80)
+        self.blob(x, y, (150, 130, 100), radius * 1.05, life=0.4, grow=70)
         self.blob(x, y, scale(color, 0.7), radius * 2.0, life=0.8, grow=60)
         self.ring(x, y, (255, 230, 160), radius * 1.6, life=0.5, width=8)
         self.ring(x, y, color, radius * 2.4, life=0.8, width=4)
