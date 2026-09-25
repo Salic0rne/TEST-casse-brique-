@@ -12,7 +12,7 @@ from . import ui
 from .app import Scene
 from .config import SCREEN_W, SCREEN_H, PF_X, PF_W, PF_H, DIFFICULTIES
 from .spritegen import fbm, arrays_to_surface, rgb_surface, L, forge, rect, circle
-from .fx import draw_bolt_tree
+from .fx import glow, draw_bolt_tree
 from .util import clamp, ease_out_back, TAU
 
 WHITE = (255, 255, 255)
@@ -337,10 +337,10 @@ class TitleScene(Scene):
         if TitleScene.ART is None:
             TitleScene.ART = TitleArt()
         self.art = TitleScene.ART
-        self.logo = ui.metal_text(ui.greekify("ALETHEIA"), 4)
-        self.shine = self.logo.copy()
-        self.shine.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        self.shine.fill((110, 100, 70, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        self.logo = ui.logo_surface()
+        self.shine = ui.logo_shine()
+        self.shine_soft = self.shine.copy()
+        self.shine_soft.fill((110, 110, 110), special_flags=pygame.BLEND_MULT)
         self.t = 0
         self.idle = 0
         self.started = False
@@ -400,16 +400,20 @@ class TitleScene(Scene):
         cx = SCREEN_W // 2 + 60
         k = ease_out_back(min(1.0, t / 50))
         lw, lh = self.logo.get_size()
-        ly = int(26 - (1 - k) * 60)
+        ly = int(22 - (1 - k) * 60)
+        g = glow(60, (60, 36, 8))
+        s.blit(pygame.transform.scale(g, (lw + 60, lh + 30)), (cx - lw // 2 - 30, ly - 15),
+               special_flags=pygame.BLEND_ADD)
         s.blit(self.logo, (cx - lw // 2, ly))
-        # reflet qui balaie le logo
-        sx = (t * 3) % (lw + 160) - 40
-        for i in range(6):
-            x = sx + i - int(i * 0.5)
+        # reflet qui balaie le logo (lettres seules, bords adoucis)
+        sx = (t * 3) % (lw + 200) - 40
+        for i in range(-3, 7):
+            x = sx + i
             if 0 <= x < lw:
-                s.blit(self.shine, (cx - lw // 2 + x, ly), (x, 0, 1, lh), special_flags=pygame.BLEND_RGB_ADD)
+                src = self.shine if 0 <= i < 4 else self.shine_soft
+                s.blit(src, (cx - lw // 2 + x, ly), (x, 0, 1, lh), special_flags=pygame.BLEND_RGB_ADD)
         font = F.FONT
-        sub_y = ly + lh + 6
+        sub_y = ly + lh + 4
         ui.meander(s, cx - 150, sub_y + 1, 34, GOLD, (90, 60, 30), 5)
         ui.meander(s, cx + 116, sub_y + 1, 34, GOLD, (90, 60, 30), 5)
         font.draw(s, "LA CHUTE DE L'OLYMPE", cx, sub_y + 1, (255, 230, 180), "center", outline=(10, 6, 22))

@@ -132,3 +132,69 @@ def laurel(surf, x, y, flip=False, col=(150, 170, 80), n=5):
         pygame.draw.ellipse(surf, col, (px - 1, py - 3, 3, 4))
         pygame.draw.ellipse(surf, col, (px - 1, py + 1, 3, 4))
     pygame.draw.line(surf, (110, 120, 60), (x, y + 1), (x + d * (n - 1) * 3, y + 1 - (n - 1)))
+
+
+# ---------------------------------------------------------------------------
+# Logo monumental : lettres lapidaires (façon inscription grecque) ciselées dans l'or
+# ---------------------------------------------------------------------------
+def _glyph_polys(ch, x0, h=28.0, sw=5.0):
+    """Polygones d'une lettre de 20 unités de large, empattements compris."""
+    R = lambda a, b, c, d: rect(x0 + a, b, x0 + c, d)
+    serif = 1.6
+    if ch == "Λ":
+        return [[(x0 + 0, h), (x0 + 8.3, 0), (x0 + 11.7, 0), (x0 + 20, h), (x0 + 15, h), (x0 + 10, 7),
+                 (x0 + 5, h)], R(-2, h - serif, 7, h), R(13, h - serif, 22, h)]
+    if ch == "L":
+        return [R(1, 0, 1 + sw, h), R(1, h - sw, 19, h), R(-1, 0, 3 + sw, serif), R(17.5, h - sw - 3, 19, h)]
+    if ch == "Σ":
+        return [R(0, 0, 19, sw), R(0, h - sw, 19, h),
+                [(x0 + 0, 0), (x0 + 6.5, 0), (x0 + 13.5, h / 2), (x0 + 6.5, h), (x0 + 0, h), (x0 + 7, h / 2)],
+                R(17.4, 0, 19, sw + 3), R(17.4, h - sw - 3, 19, h)]
+    if ch == "T":
+        return [R(0, 0, 20, sw), R(7.5, 0, 12.5, h), R(5, h - serif, 15, h), R(0, 0, 1.6, sw + 3),
+                R(18.4, 0, 20, sw + 3)]
+    if ch == "H":
+        return [R(1, 0, 1 + sw, h), R(14, 0, 14 + sw, h), R(1 + sw, 11.5, 14, 16.5), R(-1, 0, 3 + sw, serif),
+                R(-1, h - serif, 3 + sw, h), R(12, 0, 16 + sw, serif), R(12, h - serif, 16 + sw, h)]
+    if ch == "I":
+        return [R(7.5, 0, 12.5, h), R(4, 0, 16, serif), R(4, h - serif, 16, h)]
+    return []
+
+
+def logo_surface(text="ΛLΣTHΣIΛ"):
+    key = ("logo", text)
+    if key in _cache:
+        return _cache[key]
+    adv = 24.0
+    polys = []
+    for i, ch in enumerate(text):
+        polys += _glyph_polys(ch, i * adv)
+    w = int(len(text) * adv) + 10
+    h = 40
+    layers = [
+        L(polys, mat=P.GOLD, bevel=2.6, base=0.62, contrast=1.2, spec=0.55, grad=0.4, dither=0.3),
+    ]
+    spr = forge(w, h, layers, anchor=(6, 6), outline=P.OUTLINE, halo=0, ss=4)
+    img = spr.img
+    # seconde ombre douce sous le logo
+    sh = img.copy()
+    sh.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    sh.fill((6, 2, 14, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    sh.fill((255, 255, 255, 150), special_flags=pygame.BLEND_RGBA_MULT)
+    out = pygame.Surface((w + 3, h + 3), pygame.SRCALPHA)
+    out.blit(sh, (3, 3))
+    out.blit(img, (0, 0))
+    _cache[key] = out
+    _cache[("logo_letters", text)] = img
+    return out
+
+
+def logo_shine(text="ΛLΣTHΣIΛ"):
+    """Masque additif (lettres seules) pour le reflet qui balaie le logo."""
+    logo_surface(text)
+    img = _cache[("logo_letters", text)]
+    a = pygame.surfarray.array_alpha(img).astype(np.float32) / 255.0
+    rgb = a[..., None] * np.array([120, 105, 70], np.float32)[None, None, :]
+    s = pygame.Surface(img.get_size())
+    pygame.surfarray.blit_array(s, rgb.astype(np.uint8))
+    return s
