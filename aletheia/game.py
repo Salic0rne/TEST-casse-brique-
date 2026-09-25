@@ -4,7 +4,7 @@ import random
 
 import pygame
 
-from .config import PF_X, PF_W, PF_H, DIFFICULTIES
+from .config import PF_X, PF_W, PF_H, DIFFICULTIES, STAGE_RAMP
 from .fx import FX, Juice, Particle, K_STREAK
 from .entities import Bullets
 from .player import Player
@@ -118,6 +118,7 @@ class Game:
         self.add = pygame.Surface((PF_W, PF_H)).convert()
         self.score = Score(self)
         self.player = Player(self, self.diff["lives"])
+        self.player.power = self.diff.get("start_power", 0)
         self.bullets = Bullets(self)
         self.enemies = []
         self.shots = []
@@ -161,6 +162,12 @@ class Game:
     def load_stage(self, n):
         from . import backgrounds, stages
         self.stage_n = n
+        # difficulté progressive : la base choisie, modulée par le rang du stade
+        base = DIFFICULTIES[self.diff_i]
+        ramp = STAGE_RAMP.get(n, STAGE_RAMP[max(STAGE_RAMP)])
+        for key in ("bspeed", "density", "rate"):
+            self.diff[key] = base[key] * ramp[key]
+        self.diff["hp"] = ramp["hp"]
         self.enemies.clear()
         self.shots.clear()
         self.items.clear()

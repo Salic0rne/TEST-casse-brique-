@@ -112,8 +112,8 @@ class Boss(Enemy):
         self.phase = 0
         self.entered_fight = False
         super().__init__(w, x, y, **kw)
-        # le multiplicateur de difficulté renforce un peu les boss
-        self.hp *= (0.85 + 0.15 * w.diff["density"])
+        # difficulté et rang du stade : les premiers boss tombent plus vite
+        self.hp *= (0.85 + 0.15 * w.diff["density"]) * w.diff.get("hp", 1.0)
         self.max_hp = self.hp
 
     def add_part(self, p):
@@ -352,13 +352,13 @@ class Skylla(Boss):
             self.x = PF_W / 2 + math.sin(k * 0.012) * 50
             self.y = 64 + math.sin(k * 0.021) * 8
             alive = sum(1 for h in self.heads if not h.dead)
-            if alive <= 2 and k % int(8 / w.diff["rate"] + 0.5) == 0 and self.can_fire():
+            if alive <= 2 and self.beat(k, 8) and self.can_fire():
                 rot += 0.23
                 for j in range(2):
                     w.bullets.fire(self.x, self.y + 4, rot + j * math.pi, 1.7, "m", "pink")
                 if k % 24 == 0:
                     w.audio.play("eshot", self.x, 0.5)
-            if k % int(110 / w.diff["rate"]) == 60 and self.can_fire():
+            if self.beat(k, 110, 60) and self.can_fire():
                 self.ring(self.x, self.y, 14, 1.4, "l", "violet", off=k * 0.1)
                 w.audio.play("eshot_big", self.x)
             if k > self.timeout:
@@ -556,16 +556,16 @@ class Ketos(Boss):
         w = self.w
         for k in range(360):
             self.sway(self.t)
-            if k % int(70 / w.diff["rate"]) == 20 and self.can_fire():
+            if self.beat(k, 70, 20) and self.can_fire():
                 self.want_open = 1.0
-            if k % int(70 / w.diff["rate"]) == 34 and self.can_fire():
+            if self.beat(k, 70, 34) and self.can_fire():
                 mx, my = self.mouth()
                 self.spread(mx, my, 5, 0.8, 2.3, "l", "pink")
                 self.spread(mx, my, 4, 0.6, 1.7, "m", "pink")
                 w.audio.play("eshot_big", mx)
-            if k % int(70 / w.diff["rate"]) == 50:
+            if self.beat(k, 70, 50):
                 self.want_open = 0.0
-            if 150 <= k < 260 and k % 5 == 0 and self.can_fire():
+            if 150 <= k < 260 and self.beat(k, 5) and self.can_fire():
                 # jets d'eau tournoyants
                 a = k * 0.09
                 for s in (-1, 1):
@@ -608,7 +608,7 @@ class Ketos(Boss):
         for i in range(60):
             self.x += side * 5.8
             self.y = 150 - math.sin(i / 60 * math.pi) * 70
-            if i % 6 == 0 and self.can_fire():
+            if self.beat(i, 6) and self.can_fire():
                 w.bullets.fire(self.x, self.y, math.pi / 2, 1.2, "m", "blue")
                 w.bullets.fire(self.x, self.y, -math.pi / 2, 1.0, "m", "blue", acc=0.03, maxspd=2.0)
             yield
@@ -635,12 +635,14 @@ class Ketos(Boss):
             self.x = PF_W / 2 + math.sin(t * 0.02) * 60
             self.y = 76 + math.sin(t * 0.04) * 20
             mx, my = self.mouth()
-            if k % 4 == 0 and self.can_fire():
+            if self.beat(k, 4) and self.can_fire():
                 rot += 0.21
-                for j in range(3):
-                    w.bullets.fire(mx, my, rot + j * TAU / 3, 1.6, "rice", "pink")
-                    w.bullets.fire(mx, my, -rot * 0.8 + j * TAU / 3 + 0.5, 1.3, "s", "blue")
-            if k % int(90 / w.diff["rate"]) == 45 and self.can_fire():
+                arms = 3 if w.diff["density"] >= 0.75 else 2
+                for j in range(arms):
+                    w.bullets.fire(mx, my, rot + j * TAU / arms, 1.6, "rice", "pink")
+                    if w.diff["density"] >= 0.9:
+                        w.bullets.fire(mx, my, -rot * 0.8 + j * TAU / arms + 0.5, 1.3, "s", "blue")
+            if self.beat(k, 90, 45) and self.can_fire():
                 self.spread(mx, my, 7, 1.0, 2.6, "l", "violet")
                 w.audio.play("eshot_big", mx)
             if k % 20 == 0:

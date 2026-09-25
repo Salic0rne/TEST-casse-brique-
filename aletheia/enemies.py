@@ -376,7 +376,7 @@ class Hoplite(Enemy):
             k += 1
             p = self.w.player
             self.vx = clamp((p.x - self.x) * 0.01, -0.5, 0.5)
-            if k % 70 == 40 and self.can_fire():
+            if self.beat(k, 70, 40) and self.can_fire():
                 n = self.w.bullets.dens(3)
                 self.w.bullets.aimed(self.x, self.y + 12, 2.1, n, 0.35, "rice", "orange")
                 self.w.audio.play("eshot", self.x)
@@ -474,7 +474,7 @@ class Serpent(Rotor):
 
     def behave(self):
         for _ in follow(self, self.path, self.dur):
-            if self.t % 50 == 25 and self.can_fire():
+            if self.beat(self.t, 50, 25) and self.can_fire():
                 self.w.bullets.aimed(self.x, self.y, 2.2, self.w.bullets.dens(3), 0.4, "m", "green")
                 self.w.audio.play("eshot", self.x, 0.7)
             yield
@@ -525,7 +525,7 @@ class Shade(Enemy):
     def behave(self):
         while True:
             self.x = self.base_x + math.sin((self.t + self.phase) * 0.03) * 30
-            if (self.t + self.phase) % 150 == 50 and self.can_fire():
+            if self.beat(self.t + self.phase, 150, 50) and self.can_fire():
                 n = self.w.bullets.dens(4)
                 self.w.bullets.aimed(self.x, self.y, 1.4, n, 0.8, "l", "green", wave=0.02)
                 self.w.audio.play("eshot2", self.x, 0.6)
@@ -606,7 +606,7 @@ class Eagle(Rotor):
 
     def behave(self):
         for _ in follow(self, self.path, self.dur):
-            if self.t % 45 == 30 and self.can_fire():
+            if self.beat(self.t, 45, 30) and self.can_fire():
                 self.w.bullets.aimed(self.x, self.y, 3.0, self.w.bullets.dens(3), 0.25, "needle", "blue")
                 self.w.audio.play("zap", self.x, 0.5, throttle=6)
             yield
@@ -803,7 +803,7 @@ class GorgonEye(Enemy):
         k = random.randrange(40)
         while True:
             k += 1
-            if k % int(self.period / self.w.diff["rate"]) == 60 and self.can_fire():
+            if self.beat(k, self.period, 60) and self.can_fire():
                 a = self.aim()
                 x1, y1 = self.x + math.cos(a) * 400, self.y + math.sin(a) * 400
                 self.beam = Hazard(self.w, self.x, self.y, x1, y1, 7, 45, 30, (90, 255, 150), owner=self)
@@ -897,7 +897,7 @@ class HammerBot(Enemy):
             k += 1
             if self.x < 24 or self.x > PF_W - 24:
                 self.vx = -self.vx
-            if k % int(110 / self.w.diff["rate"]) == 0 and self.can_fire():
+            if self.beat(k, 110) and self.can_fire():
                 n = self.w.bullets.dens(12)
                 self.w.bullets.ring(self.x, self.y, n, 1.5, "s", "orange", offset=random.random())
                 self.w.fx.ring(self.x, self.y, 3, 22, 12, (255, 160, 60), 2)
@@ -933,7 +933,7 @@ class Trireme(Enemy):
             for i, cy in enumerate((-14, 14)):
                 want = math.atan2(p.y - (self.y + cy), p.x - self.x)
                 self.cannons[i] += clamp(angle_diff(self.cannons[i], want), -0.05, 0.05)
-            if k % int(80 / self.w.diff["rate"]) == 40 and self.can_fire():
+            if self.beat(k, 80, 40) and self.can_fire():
                 # bordée : rangées de balles de chaque flanc
                 for side in (-1, 1):
                     for j in range(self.w.bullets.dens(5)):
@@ -941,7 +941,7 @@ class Trireme(Enemy):
                         a = math.pi / 2 - side * (math.pi / 2 - 0.5)
                         self.w.bullets.fire(self.x + side * 10, y, a, 1.6, "s", "orange")
                 self.w.audio.play("eshot_big", self.x)
-            if k % int(55 / self.w.diff["rate"]) == 20 and self.can_fire():
+            if self.beat(k, 55, 20) and self.can_fire():
                 for i, cy in enumerate((-14, 14)):
                     self.w.bullets.fire(self.x, self.y + cy, self.cannons[i], 2.4, "m", "pink")
                 self.w.audio.play("eshot", self.x, 0.7)

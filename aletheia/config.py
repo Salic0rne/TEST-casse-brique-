@@ -18,11 +18,27 @@ CACHE_DIR = os.path.join(SAVE_DIR, "cache")
 
 DIFFICULTIES = [
     # nom, vitesse balles, densité, cadence, vies, continues
-    {"name": "NYMPHE", "desc": "FACILE", "bspeed": 0.78, "density": 0.7, "rate": 0.72, "lives": 4, "continues": 9},
-    {"name": "HÉROS", "desc": "NORMAL", "bspeed": 1.0, "density": 1.0, "rate": 1.0, "lives": 3, "continues": 5},
-    {"name": "DEMI-DIEU", "desc": "DIFFICILE", "bspeed": 1.16, "density": 1.3, "rate": 1.22, "lives": 3, "continues": 3},
-    {"name": "TITAN", "desc": "EXTRÊME", "bspeed": 1.3, "density": 1.6, "rate": 1.45, "lives": 2, "continues": 2},
+    {"name": "NYMPHE", "desc": "FACILE", "bspeed": 0.78, "density": 0.7, "rate": 0.72, "lives": 4, "continues": 9,
+     "start_power": 2},
+    {"name": "HÉROS", "desc": "NORMAL", "bspeed": 1.0, "density": 1.0, "rate": 1.0, "lives": 3, "continues": 5,
+     "start_power": 1},
+    {"name": "DEMI-DIEU", "desc": "DIFFICILE", "bspeed": 1.16, "density": 1.3, "rate": 1.22, "lives": 3, "continues": 3,
+     "start_power": 0},
+    {"name": "TITAN", "desc": "EXTRÊME", "bspeed": 1.3, "density": 1.6, "rate": 1.45, "lives": 2, "continues": 2,
+     "start_power": 0},
 ]
+
+# Progression : le feu ennemi se durcit de stade en stade (multiplie la vitesse des balles, leur densité,
+# la cadence de tir et la résistance des boss de la difficulté choisie). Le premier stade est une mise en
+# jambes ; la difficulté nominale est atteinte au quatrième, dépassée pour le final.
+STAGE_RAMP = {
+    1: {"bspeed": 0.8, "density": 0.62, "rate": 0.68, "hp": 0.78},
+    2: {"bspeed": 0.87, "density": 0.72, "rate": 0.76, "hp": 0.88},
+    3: {"bspeed": 0.93, "density": 0.84, "rate": 0.87, "hp": 0.95},
+    4: {"bspeed": 0.98, "density": 0.95, "rate": 0.97, "hp": 1.0},
+    5: {"bspeed": 1.02, "density": 1.02, "rate": 1.02, "hp": 1.0},
+    6: {"bspeed": 1.06, "density": 1.08, "rate": 1.08, "hp": 1.0},
+}
 
 DEFAULT_OPTIONS = {
     "music": 7,

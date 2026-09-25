@@ -91,15 +91,19 @@ qu'en QWERTY (les libellés du panneau de droite s'adaptent à ton clavier).
 
 | | Stade | Décor | Gardien | Boss |
 |---|---|---|---|---|
-| Α' | **THALASSA** | la mer de Poséidon au crépuscule, îles à temples, statue engloutie | Skylla | Kétos |
+| Α' | **THALASSA** | la mer de Poséidon au crépuscule, cumulus et îles à temples, statue engloutie | Skylla | Kétos |
 | Β' | **LABYRINTHOS** | le dédale orbital de Knossos | Daidalos (l'automate ailé) | Minotauros |
 | Γ' | **GORGONEION** | la nuée de Méduse, héros pétrifiés | Les Graiai (un seul œil pour trois) | Méduse |
 | Δ' | **HEPHAISTEION** | la forge sur Io, rivières de lave, brume de chaleur | Les Cyclopes | Talos |
 | Ε' | **TARTAROS** | le Styx au bord d'un trou noir | Charon | Kerberos |
-| ΣΤ' | **OLYMPOS** | au-dessus des nuées de Jupiter | Nikè | Zeus-Ω |
+| ΣΤ' | **OLYMPOS** | au-dessus des nuées de Jupiter, mer de cumulus traversée d'éclairs | Nikè | Zeus-Ω |
 
-Quatre difficultés : **Nymphe**, **Héros**, **Demi-dieu**, **Titan**. Les stades atteints se
-débloquent comme point de départ. Scores et options sont enregistrés dans `~/.aletheia/`.
+Quatre difficultés : **Nymphe**, **Héros**, **Demi-dieu**, **Titan**. Dans chacune, la difficulté
+**monte progressivement** : le premier stade est une mise en jambes (balles plus lentes et moins
+nombreuses, boss moins résistants), la difficulté choisie est atteinte au quatrième stade et dépassée
+pour le final. En Nymphe et en Héros, le vaisseau part avec un peu de puissance, donc un impact
+d'avance. Les stades atteints se débloquent comme point de départ. Scores et options sont
+enregistrés dans `~/.aletheia/`.
 
 ## Options de lancement (tests)
 
@@ -126,6 +130,7 @@ aletheia/
   enemies.py            le bestiaire
   bosses*.py            gardiens et boss (parties destructibles, phases)
   backgrounds*.py       décors à parallaxe
+  clouds.py             nuages volumétriques (cumulus éclairés, bancs de parallaxe, ombres)
   stages.py             metteur en scène et scripts des six stades
   fx.py, post.py        particules, explosions, éclairs, bloom, aberration chromatique
   hud.py, ui.py, font.py  panneaux à colonnes ioniques, police bitmap (accents + grec)

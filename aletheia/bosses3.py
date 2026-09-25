@@ -124,13 +124,13 @@ class Kyklopes(Boss):
                     w.audio.play("clang", h.x, 0.8)
                     w.fx.spark_burst(h.x + 20, h.y + 30, 12, (255, 200, 120), 4, 16)
                     self.ring(h.x + 20, h.y + 30, 12, 1.5, "s", "orange", off=k * 0.1)
-                if h.idx == 0 and k % int(90 / w.diff["rate"]) == 30 and self.can_fire():
+                if h.idx == 0 and self.beat(k, 90, 30) and self.can_fire():
                     self.ring(h.x, h.y + 4, 18, 1.3, "m", "blue", off=k * 0.05)
                     w.audio.play("eshot_big", h.x)
-                if h.idx == 1 and k % int(40 / w.diff["rate"]) == 10 and self.can_fire():
+                if h.idx == 1 and self.beat(k, 40, 10) and self.can_fire():
                     self.spread(h.x, h.y + 4, 3, 0.3, 3.0, "needle", "gold")
                     w.audio.play("zap", h.x, 0.5, throttle=6)
-                if h.idx == 2 and k % int(170 / w.diff["rate"]) == 80 and self.can_fire():
+                if h.idx == 2 and self.beat(k, 170, 80) and self.can_fire():
                     a = self.aim_from(h.x, h.y)
                     w.hazards.append(Hazard(w, h.x, h.y + 4, h.x + math.cos(a) * 400, h.y + math.sin(a) * 400,
                                             10, 45, 36, (255, 160, 70), owner=h))
@@ -322,7 +322,7 @@ class Talos(Boss):
             fi.slam = (p.x, self.slam_y - 16)
             for k in range(70):
                 self.drift()
-                if k % 20 == 10 and self.can_fire():
+                if self.beat(k, 20, 10) and self.can_fire():
                     self.spread(self.x, self.y + 20, 3, 0.4, 2.2, "m", "pink")
                 yield
         for k in range(50):
@@ -352,13 +352,13 @@ class Talos(Boss):
         for k in range(n):
             self.drift()
             fx, fy = self.x, self.y + 12
-            if k % 3 == 0 and self.can_fire():
+            if self.beat(k, 3) and self.can_fire():
                 a = math.pi / 2 + math.sin(k * 0.05) * 0.8 + random.uniform(-0.15, 0.15)
                 w.bullets.fire(fx, fy, a, random.uniform(1.4, 2.4), "l", "orange")
             if k % 7 == 0:
                 w.fx.add(Particle(K_FIRE, fx + random.uniform(-10, 10), fy, random.uniform(-0.5, 0.5), 1.2, 22, 5, 10,
                                   grad=P.FIRE))
-            if k % 45 == 20 and self.can_fire():
+            if self.beat(k, 45, 20) and self.can_fire():
                 # pluie de scories
                 for _ in range(w.bullets.dens(5)):
                     w.bullets.fire(random.uniform(10, PF_W - 10), -6, math.pi / 2 + random.uniform(-0.2, 0.2),
@@ -435,7 +435,7 @@ class Charon(Boss):
             self.x = PF_W / 2 + math.sin(k * 0.011) * 70
             self.y = 70 + math.sin(k * 0.017) * 12
             lx, ly = self.lantern()
-            if k % int(100 / w.diff["rate"]) == 20 and self.can_fire():
+            if self.beat(k, 100, 20) and self.can_fire():
                 # âmes : s'échappent, flottent, puis fondent sur le joueur
                 n = w.bullets.dens(8)
                 for i in range(n):
@@ -458,12 +458,12 @@ class Charon(Boss):
                             b.acc = 0.0
                             b.curve = True
                     self.souls = None
-            if k % int(70 / w.diff["rate"]) == 45 and self.can_fire():
+            if self.beat(k, 70, 45) and self.can_fire():
                 for side in (-1, 1):
                     w.bullets.arc(self.x + side * 16, self.y, math.pi / 2 + side * 0.9, w.bullets.dens(7), 1.2, 1.9,
                                   "rice", "violet")
                 w.audio.play("eshot2", self.x)
-            if k % int(120 / w.diff["rate"]) == 90 and self.can_fire():
+            if self.beat(k, 120, 90) and self.can_fire():
                 self.ring(self.x, self.y + 50, 16, 1.4, "m", "gold", off=k * 0.1)
                 w.audio.play("coin", self.x, 0.8)
             yield
@@ -595,20 +595,20 @@ class Kerberos(Boss):
             rate = w.diff["rate"] * (1.0 + (3 - len(heads)) * 0.25)
             for h in heads:
                 mx, my = h.mouth()
-                if h.kind == "fire" and k % int(90 / rate) < 24 and k % 3 == 0 and self.can_fire():
+                if h.kind == "fire" and k % int(90 / rate) < 24 and self.beat(k, 3, 0, rate) and self.can_fire():
                     a = self.aim_from(mx, my) + random.uniform(-0.35, 0.35)
                     w.bullets.fire(mx, my, a, random.uniform(1.6, 2.6), "l", "orange")
                     if k % 12 == 0:
                         w.audio.play("fire_burst", mx, 0.5, throttle=8)
-                if h.kind == "bolt" and k % int(110 / rate) == 55 and self.can_fire():
+                if h.kind == "bolt" and self.beat(k, 110, 55, rate) and self.can_fire():
                     p = w.player
                     for dx in (-30, 0, 30):
                         x = clamp(p.x + dx, 10, PF_W - 10)
                         w.hazards.append(Hazard(w, mx, my, x, PF_H + 10, 7, 36, 16, (140, 180, 255), owner=h,
                                                 kind="bolt"))
-                if h.kind == "bolt" and k % int(40 / rate) == 5 and self.can_fire():
+                if h.kind == "bolt" and self.beat(k, 40, 5, rate) and self.can_fire():
                     self.spread(mx, my, 3, 0.25, 3.1, "needle", "blue")
-                if h.kind == "ice" and k % int(80 / rate) == 40 and self.can_fire():
+                if h.kind == "ice" and self.beat(k, 80, 40, rate) and self.can_fire():
                     n = w.bullets.dens(12)
                     for i in range(n):
                         a = i * TAU / n + k * 0.03
@@ -634,7 +634,7 @@ class Kerberos(Boss):
                     self.ice = (bl, t)
             if not heads:
                 # le cœur exposé : hurlement et spirales
-                if k % 4 == 0 and self.can_fire():
+                if self.beat(k, 4) and self.can_fire():
                     for j in range(3):
                         a = k * 0.07 + j * TAU / 3
                         w.bullets.fire(self.x, self.y + 8, a, 1.7, "rice", ("red", "blue", "violet")[j])
@@ -704,16 +704,16 @@ class Nike(Boss):
             k += 1
             self.x = PF_W / 2 + math.sin(k * 0.02) * 80
             self.y = 70 + math.sin(k * 0.04) * 26
-            if k % int(60 / w.diff["rate"]) == 0 and self.can_fire():
+            if self.beat(k, 60) and self.can_fire():
                 for side in (-1, 1):
                     w.bullets.arc(self.x + side * 24, self.y, math.pi / 2 + side * 0.4, w.bullets.dens(5), 0.8, 2.0,
                                   "feather")
                 w.audio.play("eshot2", self.x)
-            if k % int(90 / w.diff["rate"]) == 45 and self.can_fire():
+            if self.beat(k, 90, 45) and self.can_fire():
                 self.spread(self.x, self.y + 20, 1, 0, 4.2, "needle", "gold")
                 self.spread(self.x, self.y + 20, 2, 0.12, 3.8, "needle", "gold")
                 w.audio.play("arrow", self.x)
-            if k % int(130 / w.diff["rate"]) == 100 and self.can_fire():
+            if self.beat(k, 130, 100) and self.can_fire():
                 self.ring(self.x, self.y, 14, 1.3, "star", "gold", off=k * 0.1)
                 w.audio.play("eshot_big", self.x)
             yield
@@ -877,7 +877,7 @@ class Zeus(Boss):
             hands = self.bolts(3, 40)
             for k in range(70):
                 self.drift()
-                if k % 24 == 12 and self.can_fire():
+                if self.beat(k, 24, 12) and self.can_fire():
                     self.ring(self.x, self.y + 20, 20, 1.4, "m", "gold", off=self.t * 0.02)
                     w.audio.play("eshot_big", self.x)
                 if k == 30:
@@ -886,7 +886,7 @@ class Zeus(Boss):
                 yield
         for k in range(120):
             self.drift()
-            if k % 6 == 0 and self.can_fire():
+            if self.beat(k, 6) and self.can_fire():
                 for h in self.hands:
                     if not h.dead:
                         tx, ty = h.bolt_tip()
@@ -914,7 +914,7 @@ class Zeus(Boss):
             w.hazards.append(hz)
         for k in range(170):
             self.drift(30)
-            if k % 30 == 15 and self.can_fire():
+            if self.beat(k, 30, 15) and self.can_fire():
                 for h in self.hands:
                     if not h.dead:
                         self.spread(h.x, h.y, 7, 1.0, 1.9, "rice", "gold")
@@ -935,7 +935,7 @@ class Zeus(Boss):
             self.drift(56)
             (lx, ly), (rx, ry) = self.eyes()
             mx, my = self.x, self.y + 30
-            if k % 3 == 0 and self.can_fire():
+            if self.beat(k, 3) and self.can_fire():
                 rot += 0.17
                 w.bullets.fire(mx, my, rot, 1.8, "rice", "gold")
                 w.bullets.fire(mx, my, rot + math.pi, 1.8, "rice", "gold")
@@ -945,7 +945,7 @@ class Zeus(Boss):
             if k % 70 == 60:
                 for h in self.hands:
                     h.raise_ = 0.0
-            if k % 45 == 0 and self.can_fire():
+            if self.beat(k, 45) and self.can_fire():
                 self.spread(mx, my, 5, 0.5, 2.8, "l", "violet")
                 w.audio.play("eshot_big", mx)
             if k % 25 == 0:

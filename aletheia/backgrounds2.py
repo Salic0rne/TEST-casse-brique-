@@ -6,6 +6,7 @@ import numpy as np
 import pygame
 
 from . import palette as P
+from . import clouds
 from .backgrounds import (Background, ramp_map, dither_quant, blob_mask, temple_sprite, column_top_sprite,
                           PF_W, PF_H)
 from .spritegen import (fbm, rgb_surface, arrays_to_surface, box_blur, dilate, erode, L, forge, circle, rect,
@@ -568,21 +569,25 @@ class Olympos(Background):
 
     def build(self):
         W, H = PF_W, 512
+        # Jupiter, loin en contrebas : bandes nuageuses tourbillonnaires sous une brume violette
         n = fbm(W, H, 4, 8, 5, seed=61)
-        deep = ramp_map(n, [(0, (40, 30, 70)), (0.4, (90, 70, 110)), (0.7, (170, 130, 130)), (1, (240, 200, 160))])
+        warp = fbm(W, H, 3, 6, 3, seed=63)
+        yy = np.arange(H, dtype=np.float32)[None, :]
+        xx = np.arange(W, dtype=np.float32)[:, None]
+        bands = np.sin(yy * (TAU * 6 / H) + warp * 5.5 + np.sin(xx * (TAU / W)) * 0.5)
+        t = np.clip(0.5 + 0.33 * bands + (n - 0.5) * 0.7, 0, 1)
+        deep = ramp_map(t, [(0, (24, 16, 46)), (0.3, (46, 30, 70)), (0.55, (84, 50, 80)), (0.75, (124, 80, 88)),
+                            (0.9, (156, 108, 102)), (1, (182, 136, 120))])
         self.deep = rgb_surface(dither_quant(deep, 36))
-        n2 = fbm(W, H, 5, 10, 5, seed=62)
-        a = np.clip((n2 - 0.46) / 0.22, 0, 1)
-        nb = blur_wrap(n2, 2)
-        gx = (np.roll(nb, -1, axis=0) - np.roll(nb, 1, axis=0)) * 0.5
-        gy = (np.roll(nb, -1, axis=1) - np.roll(nb, 1, axis=1)) * 0.5
-        sh = np.clip(0.6 - (gx + gy * 1.4) * 40, 0, 1)
-        top = ramp_map(np.clip(sh * 0.8 + n2 * 0.3, 0, 1), [(0, (150, 110, 130)), (0.5, (240, 210, 190)),
-                                                              (1, (255, 250, 236))])
-        self.clouds = arrays_to_surface(dither_quant(top, 40), a * 235)
+        # deux bancs de cumulus : bas (voilé par la brume) et moyen (éclairé, ombre portée, éclairs internes)
+        self.low = clouds.bank(PF_W, 640, 91, clouds.OLYMP, clusters=34, size=(30, 64), alpha_max=0.82,
+                               haze=(92, 70, 132), haze_k=0.45, mist=0.35)
+        self.mid = clouds.bank(PF_W, 768, 92, clouds.OLYMP, clusters=12, size=(64, 118), alpha_max=0.95,
+                               shadow_col=(26, 14, 50), shadow_k=0.5, glow_col=(150, 175, 255))
+        self.ltmp = pygame.Surface((145, 145)).convert()
         self.islands = [sky_island(70 + i, 132, 104, "temple" if i % 2 == 0 else "tholos") for i in range(4)]
         self.next_i = 90
-        self.wisps = [soft_blob(120, 70, (255, 244, 230), 120, 80 + i, 0.6) for i in range(3)]
+        self.wisps = [clouds.wisp(160, 60, 80 + i) for i in range(3)]
         self.next_wisp = 150
         self.rays = [[random.uniform(0, PF_W), random.uniform(0.2, 0.5)] for _ in range(3)]
         self.flash_t = 0
@@ -618,13 +623,19 @@ class Olympos(Background):
             if getattr(self.w, "audio", None) is not None:
                 self.w.audio.play("thunder", self.flash_x, 0.35, throttle=60)
 
+    def drift(self):
+        return self.t * 0.07          # le vent pousse lentement le banc moyen
+
     def draw_far(self, f):
-        self.scroll_tile(f, self.deep, self.dist * 0.45)
+        self.scroll_tile(f, self.deep, self.dist * 0.3)
         if self.flash > 0:
             k = int(self.flash * 90)
             g = glow(60, (k, k, int(k * 1.2)))
             f.blit(g, (int(self.flash_x - 60), int(self.flash_y - 60)), special_flags=pygame.BLEND_ADD)
-        self.scroll_tile(f, self.clouds, self.dist * 0.8)
+        d = self.drift()
+        clouds.blit_torus(f, self.low["img"], -d * 0.4, self.dist * 0.45)
+        clouds.blit_torus(f, self.mid["shadow"], d, self.dist * 0.8)
+        clouds.blit_torus(f, self.mid["img"], d, self.dist * 0.8)
         if self.storm_k > 0:
             k = self.storm_k * (1 - self.flash * 0.6)
             self.dark.fill((int(255 - 150 * k), int(255 - 160 * k), int(255 - 110 * k)))
@@ -644,6 +655,17 @@ class Olympos(Background):
             for x, _ in self.rays:
                 pygame.draw.polygon(a, (int(18 * k), int(14 * k), int(6 * k)),
                                     [(x, 0), (x + 26, 0), (x - 44, PF_H), (x - 80, PF_H)])
+        if self.flash > 0.05:
+            # l'éclair illumine les nuées de l'intérieur (bleuté, épais au cœur des cumulus)
+            R = 72
+            x0, y0 = int(self.flash_x) - R, int(self.flash_y) - R
+            tmp = self.ltmp
+            tmp.fill((0, 0, 0))
+            clouds.blit_torus(tmp, self.mid["glow"], self.drift() - x0, self.dist * 0.8 - y0)
+            tmp.blit(glow(R, (255, 255, 255)), (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+            v = int(255 * min(1.0, self.flash))
+            tmp.fill((v, v, v), special_flags=pygame.BLEND_RGB_MULT)
+            a.blit(tmp, (x0, y0), special_flags=pygame.BLEND_ADD)
         Background.draw_add(self, a)
 
 

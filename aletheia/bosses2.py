@@ -120,16 +120,16 @@ class Daidalos(Boss):
             self.x = PF_W / 2 + math.sin(k * 0.013 * sp) * 64
             self.y = 70 + math.sin(k * 0.027 * sp) * 16
             for wg in self.wings:
-                if not wg.dead and (k + (40 if wg.side < 0 else 0)) % int(80 / w.diff["rate"]) == 0 and self.can_fire():
+                if not wg.dead and self.beat(k + (40 if wg.side < 0 else 0), 80) and self.can_fire():
                     a = math.pi / 2 + wg.side * 0.5
                     w.bullets.arc(wg.x + wg.side * 14, wg.y + 6, a, w.bullets.dens(6), 1.0, 2.1, "feather")
                     w.audio.play("eshot2", wg.x, 0.7)
-            if k % int(6 / w.diff["rate"] + 0.5) == 0 and self.can_fire():
+            if self.beat(k, 6) and self.can_fire():
                 rot += 0.19 if wings else 0.27
                 n = 2 if wings else 4
                 for j in range(n):
                     w.bullets.fire(self.x, self.y, rot + j * TAU / n, 1.6 if wings else 2.0, "s", "pink")
-            if not wings and k % int(70 / w.diff["rate"]) == 0 and self.can_fire():
+            if not wings and self.beat(k, 70) and self.can_fire():
                 self.ring(self.x, self.y, 16, 1.4, "m", "violet", off=k * 0.07)
                 w.audio.play("eshot_big", self.x)
             yield
@@ -237,7 +237,7 @@ class Labrys(Enemy):
             t = ease_out_cubic(i / 70)
             self.x = x0 + (self.tx - x0) * t
             self.y = y0 + (self.ty - y0) * t
-            if i % 6 == 0 and self.can_fire():
+            if self.beat(i, 6) and self.can_fire():
                 w.bullets.ring(self.x, self.y, w.bullets.dens(6), 1.1, "s", "orange", offset=self.ang)
             yield
         for i in range(80):
@@ -325,7 +325,7 @@ class Minotauros(Boss):
             hz.x0, hz.y0, hz.x1, hz.y1 = track()
             w.hazards.append(hz)
         for i in range(140):
-            if i % 20 == 10 and self.can_fire():
+            if self.beat(i, 20, 10) and self.can_fire():
                 self.spread(self.x, self.y + 40, 3, 0.4, 2.2, "m", "orange")
             yield
 
@@ -346,7 +346,7 @@ class Minotauros(Boss):
         w.spawn(self.labrys)
         w.audio.play("clang", self.x)
         for i in range(90):
-            if i % 30 == 15 and self.can_fire():
+            if self.beat(i, 30, 15) and self.can_fire():
                 self.ring(self.x, self.y + 20, 14, 1.3, "m", "pink", off=i * 0.1)
             yield
 
@@ -383,7 +383,7 @@ class Minotauros(Boss):
         rot = 0.0
         for i in range(300):
             self.x = PF_W / 2 + math.sin(i * 0.03) * 50
-            if i % 4 == 0 and self.can_fire():
+            if self.beat(i, 4) and self.can_fire():
                 rot += 0.23
                 for j in range(3):
                     w.bullets.fire(self.x, self.y + 30, rot + j * TAU / 3, 1.8, "rice", "violet")
@@ -527,7 +527,7 @@ class Graiai(Boss):
             if k % 240 == 0:
                 self.pass_eye()
             ex, ey = self.eye_pos
-            if self.eye_t > 30 and k % int(48 / w.diff["rate"]) == 0 and self.can_fire():
+            if self.eye_t > 30 and self.beat(k, 48) and self.can_fire():
                 self.spread(ex, ey, 5, 0.6, 2.4, "needle", "green")
                 w.audio.play("eshot2", ex)
             if self.eye_t == 60 and self.can_fire():
@@ -536,7 +536,7 @@ class Graiai(Boss):
                             owner=h)
                 w.hazards.append(hz)
             for s in alive:
-                if s is not h and (k + s.idx * 20) % int(70 / w.diff["rate"]) == 0 and self.can_fire():
+                if s is not h and self.beat(k + s.idx * 20, 70) and self.can_fire():
                     self.ring(s.x, s.y, 10, 1.1, "m", "violet", off=k * 0.05)
             yield
 
@@ -689,12 +689,12 @@ class Medusa(Boss):
         alive = [s for s in self.snakes if not s.dead]
         for k in range(200):
             self.drift(k)
-            if alive and k % 10 == 0 and self.can_fire():
+            if alive and self.beat(k, 10) and self.can_fire():
                 s = alive[(k // 10) % len(alive)]
                 if not s.dead:
                     w.bullets.fire(s.x, s.y, s.aim_a, 2.3, "rice", "green")
                     w.bullets.fire(s.x, s.y, s.aim_a + 0.2, 2.1, "rice", "green")
-            if k % 60 == 30 and self.can_fire():
+            if self.beat(k, 60, 30) and self.can_fire():
                 self.spread(self.x, self.y + 22, 5, 0.9, 1.6, "l", "violet")
                 w.audio.play("eshot_big", self.x)
             yield
@@ -717,7 +717,7 @@ class Medusa(Boss):
         w.audio.play("charge", self.x)
         for k in range(160):
             self.drift(k)
-            if k > 50 and k % 12 == 0 and self.can_fire():
+            if k > 50 and self.beat(k, 12) and self.can_fire():
                 self.ring(self.x, self.y, 10, 1.0, "l", "white", off=k * 0.1)
             yield
 
@@ -726,7 +726,7 @@ class Medusa(Boss):
         rot = 0.0
         for k in range(240):
             self.drift(k)
-            if k % 5 == 0 and self.can_fire():
+            if self.beat(k, 5) and self.can_fire():
                 rot += 0.12
                 for s in self.snakes:
                     if not s.dead:
@@ -750,7 +750,7 @@ class Medusa(Boss):
             w.hazards.append(hz)
         for k in range(170):
             self.drift(k)
-            if k % 16 == 0 and self.can_fire():
+            if self.beat(k, 16) and self.can_fire():
                 self.spread(self.x, self.y + 22, 3, 0.5, 2.5, "m", "pink")
             yield
 

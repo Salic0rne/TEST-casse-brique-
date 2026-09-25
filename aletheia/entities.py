@@ -242,6 +242,13 @@ class Enemy:
         """Pas de tir hors écran ni trop près du bas (équité)."""
         return 6 < self.x < PF_W - 6 and 4 < self.y < PF_H - 50 and not self.w.player_dead_pause
 
+    def beat(self, k, base, off=0, rate=None):
+        """Vrai une fois par période : « base » images à cadence 1, raccourcie ou allongée selon la cadence
+        de tir courante (difficulté x progression du stade). Le décalage reste proportionnel à la période :
+        l'attaque ne peut jamais tomber hors période et disparaître."""
+        p = max(1, int(base / (rate or self.w.diff["rate"]) + 0.5))
+        return k % p == (off * p) // base
+
 
 # ---------------------------------------------------------------------------
 # Balles ennemies

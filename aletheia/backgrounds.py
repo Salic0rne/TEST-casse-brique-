@@ -6,6 +6,7 @@ import numpy as np
 import pygame
 
 from . import palette as P
+from . import clouds
 from .spritegen import (L, forge, circle, rect, line, move, fbm, box_blur, arrays_to_surface, rgb_surface, dilate, Sprite)
 from .fx import glow
 
@@ -156,6 +157,7 @@ class Background:
         for (x, y, r) in self.scorches:
             s = scorch_sprite(r)
             f.blit(s, (int(x - s.get_width() / 2), int(y - s.get_height() / 2)))
+        self._draw_layer(f, "shade")
 
     def draw_mid(self, f):
         self._draw_layer(f, "mid")
@@ -364,7 +366,14 @@ class Thalassa(Background):
         self.islands = [island_sprite(112, 92, 100 + i, True) for i in range(3)] + \
                        [island_sprite(70, 60, 200 + i, True) for i in range(2)]
         self.rocks = [island_sprite(24, 20, 300 + i, False) for i in range(3)]
-        self.clouds = [self.make_cloud(110, 70, 400 + i) for i in range(3)]
+        # cumulus du crépuscule entre la mer et le vaisseau (ombre sur l'eau) + filaments translucides
+        # qui filent au-dessus de l'action
+        self.clouds = [clouds.cumulus(w, h, 400 + i, clouds.DUSK, alpha_max=0.8, kind=k)
+                       for i, (w, h, k) in enumerate(((176, 116, "tower"), (196, 108, "cluster"),
+                                                      (150, 104, "tower"), (210, 90, "plate"),
+                                                      (160, 110, "cluster")))]
+        self.wisps = [clouds.wisp(170, 60, 420 + i, clouds.DUSK, alpha_max=0.42) for i in range(3)]
+        self.next_wisp = 400
         self.glints = _Glints()
         self.next_rock = 60
         self.next_cloud = 100
@@ -395,15 +404,6 @@ class Thalassa(Background):
             out.blit(g, (x - 6, y - 6), special_flags=pygame.BLEND_RGB_ADD)
         return out
 
-    def make_cloud(self, w, h, seed):
-        v, m = blob_mask(w, h, 0.45, seed, 0.55, 4)
-        n = fbm(w, h, 6, 6, 3, seed=seed + 5)
-        a = np.clip((v - 0.35) / 0.5, 0, 1) * (0.6 + 0.4 * n) * 200
-        rgb = ramp_map(np.clip(n + 0.1, 0, 1), [(0, (200, 170, 190)), (0.6, (250, 230, 220)), (1, (255, 250, 240))])
-        img = arrays_to_surface(rgb, a)
-        shadow = arrays_to_surface(np.zeros((w, h, 3), np.float32) + (0, 10, 30), a * 0.45)
-        return img, shadow
-
     def tick(self):
         s = self.scroll
         self.glints.update(s, (0.05, 0.55), 3)
@@ -413,11 +413,18 @@ class Thalassa(Background):
             self.add(self.rng.choice(self.rocks), self.rng.uniform(10, PF_W - 10))
         self.next_cloud -= s
         if self.next_cloud <= 0:
-            self.next_cloud = self.rng.uniform(180, 320)
+            self.next_cloud = self.rng.uniform(210, 380)
             img, sh = self.rng.choice(self.clouds)
-            x = self.rng.uniform(0, PF_W)
-            self.add(sh, x + 24, -60, "ground", 1.6)
-            self.add(img, x, -80, "fore", 1.6, alpha=150)
+            x = self.rng.uniform(10, PF_W - 10)
+            y = -img.get_height() / 2 - 4
+            spd = self.rng.uniform(1.2, 1.35)
+            self.add(sh, x + 18, y + 24, "shade", spd)
+            self.add(img, x, y, "mid", spd)
+        self.next_wisp -= s
+        if self.next_wisp <= 0:
+            self.next_wisp = self.rng.uniform(420, 700)
+            img = self.rng.choice(self.wisps)
+            self.add(img, self.rng.uniform(20, PF_W - 20), -img.get_height() / 2 - 2, "fore", 2.1)
 
     def spawn_island(self, i, x):
         return self.add(self.islands[i % len(self.islands)], x)
@@ -456,6 +463,7 @@ class Thalassa(Background):
         for (x, y, r) in self.scorches:
             sc = scorch_sprite(r)
             f.blit(sc, (int(x - sc.get_width() / 2), int(y - sc.get_height() / 2)))
+        self._draw_layer(f, "shade")
 
     def draw_add(self, a):
         Background.draw_add(self, a)
