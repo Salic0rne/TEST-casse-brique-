@@ -27,17 +27,20 @@ Au premier lancement, la forge prépare les sprites, les bruitages et l'hymne du
 
 ## Commandes
 
-| Action | Clavier | Manette |
-|---|---|---|
-| Déplacement | Flèches / WASD | Stick / croix |
-| Tir (maintenir) | **Z** / J / Espace | A / gâchette droite |
-| Changer de mode d'arme (α β γ) | **X** / K | X |
-| Théophanie (bombe) | **C** / L | B |
-| Vitesse + / − (4 crans) | **V** / Maj — B / Ctrl | Y, RB / LB |
-| Pause | Échap / P / Entrée | Start |
-| Plein écran | F11 ou Alt+Entrée | |
-| Filtre CRT (lignes de balayage) | F2 | |
-| Compteur d'images/s | F3 | |
+Les touches sont lues **par position physique** : tout fonctionne aussi bien en **AZERTY**
+qu'en QWERTY (les libellés du panneau de droite s'adaptent à ton clavier).
+
+| Action | AZERTY | QWERTY | Manette |
+|---|---|---|---|
+| Déplacement | Flèches / **ZQSD** | Flèches / WASD | Stick / croix |
+| Tir (maintenir) | **W** / J / Espace | Z / J / Espace | A / gâchette droite |
+| Changer de mode d'arme (α β γ) | **X** / K | X / K | X |
+| Théophanie (bombe) | **C** / L | C / L | B |
+| Vitesse + / − (4 crans) | **V** / Maj — B / Ctrl | V / Shift — B / Ctrl | Y, RB / LB |
+| Pause | Échap / P / Entrée | Esc / P / Enter | Start |
+| Plein écran | F11 ou Alt+Entrée | | |
+| Filtre CRT (lignes de balayage) | F2 | | |
+| Compteur d'images/s | F3 | | |
 
 ## Le gameplay (façon Super Aleste, en mieux)
 
@@ -68,6 +71,8 @@ Au premier lancement, la forge prépare les sprites, les bruitages et l'hymne du
   s'applique à tout (ennemis, drachmes, frôlements). Le frôlement des balles entretient la chaîne.
 - Monter dans le **haut de l'écran** attire tous les objets vers toi.
 - Vies supplémentaires à 200 000, 500 000, 1 000 000… et couronnes de laurier cachées.
+- Sections à **défilement rapide** (la chute vers l'Érèbe), cartes-titres des boss,
+  mode **démo** automatique quand l'écran-titre reste inactif.
 
 ## Les six stades
 

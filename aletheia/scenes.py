@@ -795,13 +795,23 @@ class NameEntryScene(Scene):
         if inp.menu("right") and self.pos < 2:
             self.pos += 1
             a.play("menu_move")
+        typed = False
         for ev in inp.text_events:
+            if ev.key == pygame.K_BACKSPACE:
+                self.pos = max(0, self.pos - 1)
+                typed = True
+                continue
             ch = ev.unicode.upper() if ev.unicode else ""
-            if ch in ALPHA and ch not in ("",):
+            if ch and ch in ALPHA:
                 self.letters[self.pos] = ALPHA.index(ch)
+                typed = True
+                a.play("menu_move")
                 if self.pos < 2:
                     self.pos += 1
-        if inp.pressed("confirm") and self.t > 20:
+        if typed:
+            return
+        enter = any(ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER) for ev in inp.text_events)
+        if (inp.pressed("confirm") or enter) and self.t > 20:
             if self.pos < 2:
                 self.pos += 1
                 a.play("menu_move")
@@ -826,6 +836,7 @@ class NameEntryScene(Scene):
             if sel and (self.t // 10) % 2 == 0:
                 pygame.draw.line(s, GOLD, (x - 10, 162), (x + 10, 162), 2)
         font.draw(s, "↑↓ LETTRE · ←→ POSITION · TIR VALIDER", SCREEN_W // 2, 190, DIM, "center")
+        font.draw(s, "(OU TAPE TON NOM AU CLAVIER, PUIS ENTRÉE)", SCREEN_W // 2, 202, (100, 100, 150), "center")
 
 
 # ---------------------------------------------------------------------------
