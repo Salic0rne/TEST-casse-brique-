@@ -67,6 +67,9 @@ class HUD:
         screen.blit(self.panels, (0, 0), (0, 0, PF_X, SCREEN_H))
         rx = PF_X + PF_W
         screen.blit(self.panels, (rx, 0), (rx, 0, SCREEN_W - rx, SCREEN_H))
+        # les colonnes encadrent l'aire de jeu (et masquent ses bords pendant les secousses)
+        screen.blit(self.col, (PF_X - self.col.get_width() + 5, 0))
+        screen.blit(self.col, (PF_X + PF_W - 5, 0))
         font = F.FONT
         p = g.player
         sc = g.score

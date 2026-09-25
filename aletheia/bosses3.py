@@ -78,6 +78,7 @@ class KykHead(Part):
 
 class Kyklopes(Boss):
     NAME = "ΚΥΚΛΩΠΕΣ · LES CYCLOPES"
+    CARD = ("ΚΥΚΛΩΠΕΣ", "BRONTÈS · STÉROPÈS · ARGÈS")
     HP = 1
     SCORE = 25000
     MID = True
@@ -265,6 +266,7 @@ class TalosFist(Part):
 
 class Talos(Boss):
     NAME = "ΤΑΛΩΣ · LE GÉANT DE BRONZE"
+    CARD = ("ΤΑΛΩΣ", "LE GÉANT DE BRONZE")
     HP = 2100
     RADIUS = 20
 
@@ -405,6 +407,7 @@ def _charon():
 
 class Charon(Boss):
     NAME = "ΧΑΡΩΝ · LE PASSEUR"
+    CARD = ("ΧΑΡΩΝ", "LE PASSEUR DU STYX")
     HP = 950
     SCORE = 25000
     MID = True
@@ -560,6 +563,7 @@ class KerbHead(Part):
 
 class Kerberos(Boss):
     NAME = "ΚΕΡΒΕΡΟΣ · CERBÈRE"
+    CARD = ("ΚΕΡΒΕΡΟΣ", "LE GARDIEN DES ENFERS")
     HP = 1150
     RADIUS = 24
 
@@ -678,6 +682,7 @@ def _nike():
 
 class Nike(Boss):
     NAME = "ΝΙΚΗ · LA VICTOIRE"
+    CARD = ("ΝΙΚΗ", "LA VICTOIRE AILÉE")
     HP = 1050
     SCORE = 25000
     MID = True
@@ -766,7 +771,7 @@ def _zeus_face():
 
 def _zeus_hand():
     return forge(61, 61, [
-        L(polyline([(8, -26), (-4, -6), (6, -2), (-8, 26)], 5), emit=(200, 220, 255), glow=1.6),
+        L(polyline([(8, -26), (-4, -6), (6, -2), (-8, 26)], 4), emit=(170, 200, 255), glow=0.7),
         L([ellipse(0, 4, 16, 13)], mat=P.MARBLE, profile="round", base=0.62),
         L([ellipse(-11 + i * 7.3, -6, 3.2, 6) for i in range(4)], mat=P.MARBLE, profile="round", base=0.7),
         L([rect(-14, 12, 14, 18)], mat=P.GOLD, bevel=1.5),
@@ -801,6 +806,7 @@ class ZeusHand(Part):
 
 class Zeus(Boss):
     NAME = "ΖΕΥΣ-Ω · LE ROI DES DIEUX"
+    CARD = ("ΖΕΥΣ-Ω", "LE ROI DES DIEUX")
     HP = 3400
     SCORE = 300000
     RADIUS = 30

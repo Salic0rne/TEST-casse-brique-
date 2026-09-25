@@ -880,13 +880,15 @@ class Bomb:
         g = self.god
         rnd = random.random
         if g == "zeus":
-            if t % 7 == 1 and t < 110:
+            if t % 5 == 1 and t < 115:
                 tg = w.random_target()
                 x = tg.x if tg and rnd() < 0.7 else rnd() * PF_W
                 y = tg.y if tg and rnd() < 0.7 else rnd() * PF_H * 0.8
-                self.strikes.append([x, y, 6])
-                w.fx.explosion(x, y, 0.8, grad=P.PLASMA, smoke_on=False)
-                w.juice.flash((180, 200, 255), 0.35, 0.1)
+                self.strikes.append([x, y, 10])
+                w.fx.explosion(x, y, 0.9, grad=P.PLASMA, smoke_on=False)
+                w.fx.ring(x, y, 3, 34, 16, (150, 190, 255), 2)
+                w.juice.flash((180, 200, 255), 0.3, 0.1)
+                w.juice.shake(0.15)
                 w.audio.play("lightning", x, 0.8, throttle=6)
             if t == 2:
                 w.audio.play("thunder")
@@ -923,8 +925,14 @@ class Bomb:
                     w.fx.add(Particle(K_FIRE, x, PF_H + 5, (rnd() - 0.5) * 2, -6 - rnd() * 5, 30, 5, 12,
                                       grad=P.FIRE, drag=0.97))
         else:
-            if t < 60 and t % 10 == 0:
-                w.fx.ring(self.p.x, self.p.y, 4, 160, 30, (255, 255, 255), 3)
+            # NOVA : l'éclat nu d'Aletheia (sans arme divine)
+            if t < 70 and t % 8 == 0:
+                w.fx.ring(self.p.x, self.p.y, 4, 170, 34, (255, 250, 230), 4)
+            if t < 90 and t % 2 == 0:
+                for _ in range(3):
+                    a = rnd() * TAU
+                    w.fx.add(Particle(K_STREAK, self.p.x + math.cos(a) * 8, self.p.y + math.sin(a) * 8,
+                                      math.cos(a) * 8, math.sin(a) * 8, 22, 4, 2, (255, 240, 210)))
         self.strikes = [[x, y, n - 1] for (x, y, n) in self.strikes if n > 1]
         if t >= self.DUR:
             self.alive = False
@@ -934,8 +942,11 @@ class Bomb:
         g = self.god
         k = max(0.0, 1 - t / self.DUR)
         if g == "zeus":
+            if t < 120:
+                kk = min(1.0, t / 10) * k
+                add.fill((int(10 * kk), int(14 * kk), int(40 * kk)), special_flags=pygame.BLEND_ADD)
             for (x, y, n) in self.strikes:
-                draw_bolt_tree(add, x + random.uniform(-20, 20), -10, x, y, (140, 180, 255), 14, 3)
+                draw_bolt_tree(add, x + random.uniform(-20, 20), -10, x, y, (140, 180, 255), 14, 3 if n > 5 else 2)
         elif g == "apollo":
             p = self.p
             wdt = int(60 * math.sin(min(1.0, t / 20) * math.pi / 2) * k + 4)
@@ -965,6 +976,13 @@ class Bomb:
         elif g == "artemis":
             gg = glow(30, (int(40 * k), int(80 * k), int(70 * k)), 0.4 * k)
             add.blit(gg, (PF_W // 2 - 30, 10), special_flags=pygame.BLEND_ADD)
+            pygame.draw.circle(add, (int(170 * k), int(230 * k), int(210 * k)), (PF_W // 2, 40), 22, 0)
+            pygame.draw.circle(add, (0, 0, 0), (PF_W // 2 + 9, 34), 20, 0)
+        elif g is None:
+            p = self.p
+            r = int(min(1.0, t / 24) * 60)
+            gg = glow(max(4, r), (int(120 * k), int(115 * k), int(100 * k)), 0.8 * k)
+            add.blit(gg, (int(p.x - gg.get_width() // 2), int(p.y - gg.get_height() // 2)), special_flags=pygame.BLEND_ADD)
 
     def draw(self, surf):
         if self.god == "athena" and self.t < 110:

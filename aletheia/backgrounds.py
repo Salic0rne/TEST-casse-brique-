@@ -427,6 +427,10 @@ class Thalassa(Background):
 
     def draw_far(self, f):
         self.scroll_tile(f, self.deep, self.dist * 0.8)
+        post = getattr(self.w, "post", None)
+        if post is not None:
+            # ondulation raster façon HDMA sur les profondeurs
+            post.raster_wave(f, self.t, amp=1.0, freq=0.045, speed=0.05)
 
     def draw_ground(self, f):
         self._draw_layer(f, "deep")

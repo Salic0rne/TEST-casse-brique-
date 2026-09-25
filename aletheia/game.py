@@ -145,6 +145,8 @@ class Game:
         self.stage_start_score = 0
         self.tally = None
         self.gameover = False
+        self.boss_card = None
+        self.start_gift = stage > 1
         self.load_stage(stage)
         a = app.args
         if a is not None:
@@ -308,6 +310,9 @@ class Game:
     # --- boss ---------------------------------------------------------------------
     def set_boss(self, b):
         self.boss = b
+        card = getattr(b, "CARD", None)
+        if card:
+            self.boss_card = [card[0], card[1], 170]
 
     def warning(self):
         self.warning_t = 200
@@ -357,6 +362,12 @@ class Game:
             if self.state_t >= 110:
                 self.state = "play"
                 p.control = True
+                if self.start_gift and p.god is None:
+                    # départ d'un stade avancé : un présent des dieux
+                    self.start_gift = False
+                    self.drop_items(PF_W / 2, 40, "orb", 1)
+                    self.drop_items(PF_W / 2, 60, "p", 3 + self.stage_n)
+                    self.banner("PRÉSENT DES DIEUX", (255, 230, 150), 90)
         elif st == "play":
             if getattr(self, "state_enter", False):
                 self.enter_t += 1
@@ -412,6 +423,10 @@ class Game:
                 self.boss_show = max(0.0, self.boss_show - 0.04)
         if self.hud_flash_weapon > 0:
             self.hud_flash_weapon -= 1
+        if self.boss_card is not None:
+            self.boss_card[2] -= 1
+            if self.boss_card[2] <= 0:
+                self.boss_card = None
         self.banners = [[a, b, c - 1, d, e] for (a, b, c, d, e) in self.banners if c > 1]
 
     def update_tally(self, inp):
@@ -527,6 +542,8 @@ class Game:
         # avertissement
         if self.warning_t > 0:
             self.draw_warning(f)
+        if self.boss_card is not None:
+            self.draw_boss_card(f)
         # bannières
         yb = 120
         for (text, col, life, total, sub) in self.banners:
@@ -564,6 +581,24 @@ class Game:
             font.draw(f, "ΚΙΝΔΥΝΟΣ", PF_W // 2, PF_H // 2 - 14, red, "center", outline=(30, 0, 10), scale=2)
             font.draw(f, "ALERTE : DIVINITÉ EN APPROCHE", PF_W // 2, PF_H // 2 + 8, (255, 220, 220), "center",
                       outline=(30, 0, 10))
+
+    def draw_boss_card(self, f):
+        from . import ui
+        title, sub, life = self.boss_card
+        t = 170 - life
+        k = min(1.0, t / 16, life / 16)
+        if k <= 0:
+            return
+        cy = 150
+        w_ = int(230 * ease_out_cubic(k))
+        band = pygame.Surface((max(1, w_), 34), pygame.SRCALPHA)
+        band.fill((6, 2, 20, int(150 * k)))
+        f.blit(band, (PF_W // 2 - w_ // 2, cy - 12))
+        pygame.draw.line(f, (200, 150, 60), (PF_W // 2 - w_ // 2, cy - 12), (PF_W // 2 + w_ // 2, cy - 12))
+        pygame.draw.line(f, (200, 150, 60), (PF_W // 2 - w_ // 2, cy + 21), (PF_W // 2 + w_ // 2, cy + 21))
+        if k > 0.7:
+            ui.draw_metal(f, title, PF_W // 2 + int((1 - k) * 40), cy - 6, 2)
+            F.FONT.draw(f, sub, PF_W // 2, cy + 10, (230, 220, 255), "center", outline=(10, 6, 22))
 
     def draw_stage_card(self, f):
         from . import stages

@@ -94,6 +94,7 @@ class Boss(Enemy):
     BOSSPART = True
     BODY = True
     NAME = "BOSS"
+    CARD = None
     HP = 2000
     SCORE = 100000
     EXPLO = 3.0
@@ -310,6 +311,7 @@ class SkyllaHead(Part):
 
 class Skylla(Boss):
     NAME = "ΣΚΥΛΛΑ · SKYLLA"
+    CARD = ("ΣΚΥΛΛΑ", "LA DÉVOREUSE AUX SIX TÊTES")
     HP = 260
     SCORE = 20000
     RADIUS = 14
@@ -478,6 +480,7 @@ class KetosSeg(Part):
 
 class Ketos(Boss):
     NAME = "ΚΗΤΟΣ · KÉTOS"
+    CARD = ("ΚΗΤΟΣ", "LE MONSTRE DES ABYSSES")
     HP = 1650
     SCORE = 100000
     RADIUS = 16

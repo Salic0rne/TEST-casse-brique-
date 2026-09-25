@@ -91,6 +91,7 @@ class DaidalosWing(Part):
 
 class Daidalos(Boss):
     NAME = "ΔΑΙΔΑΛΟΣ · L'AUTOMATE"
+    CARD = ("ΔΑΙΔΑΛΟΣ", "LES AILES D'ICARE")
     HP = 320
     SCORE = 20000
     RADIUS = 16
@@ -270,6 +271,7 @@ class Labrys(Enemy):
 
 class Minotauros(Boss):
     NAME = "ΜΙΝΩΤΑΥΡΟΣ · MINOTAURE"
+    CARD = ("ΜΙΝΩΤΑΥΡΟΣ", "LE TAUREAU DU DÉDALE")
     HP = 2100
     RADIUS = 22
 
@@ -355,13 +357,13 @@ class Minotauros(Boss):
         tx = p.x
         yield from move_to(self, tx, 40, 30, ease_in_out)
         # avertissement : trait vertical
-        hz = Hazard(w, tx, 60, tx, PF_H, 46, 40, 1, (255, 60, 60))
+        hz = Hazard(w, tx, 60, tx, PF_H, 46, 46, 1, (255, 60, 60))
         w.hazards.append(hz)
         w.audio.play("roar", tx, 0.8)
-        yield from wait(38)
+        yield from wait(44)
         self.charging = True
-        for i in range(24):
-            self.y += 7.5
+        for i in range(22):
+            self.y += 7.0
             if i % 3 == 0:
                 w.fx.add(Particle(K_GLOW, self.x, self.y - 30, 0, -2, 16, 12, 4, (150, 80, 40)))
             yield
@@ -369,9 +371,11 @@ class Minotauros(Boss):
         w.juice.shake(0.7)
         w.audio.play("explo_m", self.x)
         w.fx.ring(self.x, self.y + 30, 6, 90, 30, (255, 170, 90), 4)
-        if self.can_fire() or True:
-            self.ring(self.x, self.y + 20, 24, 1.7, "m", "orange")
-            self.ring(self.x, self.y + 20, 12, 1.1, "l", "pink", off=0.13)
+        yield from wait(10)
+        # onde de choc : couronne lente, à distance respectable du joueur
+        self.ring(self.x, self.y + 10, 16, 1.2, "m", "orange")
+        if w.diff["density"] > 1.0:
+            self.ring(self.x, self.y + 10, 8, 0.9, "l", "pink", off=0.2)
         yield from wait(20)
         yield from move_to(self, PF_W / 2, 60, 70, ease_in_out)
 
@@ -453,6 +457,7 @@ class Graia(Part):
 
 class Graiai(Boss):
     NAME = "ΓΡΑΙΑΙ · LES GRÉES"
+    CARD = ("ΓΡΑΙΑΙ", "TROIS SŒURS, UN SEUL ŒIL")
     HP = 1
     SCORE = 25000
     MID = True
@@ -634,6 +639,7 @@ class MedusaSnake(Part):
 
 class Medusa(Boss):
     NAME = "ΜΕΔΟΥΣΑ · MÉDUSE"
+    CARD = ("ΜΕΔΟΥΣΑ", "LA GORGONE AU REGARD DE PIERRE")
     HP = 2400
     RADIUS = 26
 

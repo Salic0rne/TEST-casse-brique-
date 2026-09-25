@@ -443,6 +443,8 @@ class StoryScene(Scene):
         self.t += 1
         self.art.update()
         inp = self.app.input
+        if self.page >= len(self.pages):
+            return
         if self.t % 2 == 0 and self.chars < self.total():
             self.chars += 1
             if self.chars % 3 == 0:
@@ -457,6 +459,7 @@ class StoryScene(Scene):
                 if self.page >= len(self.pages):
                     self.finish()
         if inp.pressed("back") or inp.pressed("pause"):
+            self.page = len(self.pages)
             self.finish()
 
     def finish(self):
@@ -562,6 +565,7 @@ class GameScene(Scene):
 
     def draw(self, s):
         g = self.g
+        s.fill((0, 0, 0), (PF_X - 10, 0, PF_W + 20, SCREEN_H))
         g.draw(s)
         self.app.hud.draw(s, g)
         font = F.FONT

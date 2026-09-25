@@ -45,6 +45,25 @@ def draw_stars(f, stars, scroll, t, col=(255, 255, 255)):
         f.fill(c, (int(s[0]), int(s[1]), 1, 1))
 
 
+def soft_blob(w, h, col, alpha, seed, rough=0.5):
+    v, m = blob_mask(w, h, 0.45, seed, rough, 4)
+    a = np.clip((v - 0.35) / 0.5, 0, 1) ** 1.2 * alpha
+    rgb = np.zeros((w, h, 3), np.float32)
+    rgb[:] = col
+    return arrays_to_surface(rgb, a)
+
+
+def girder(w=PF_W, h=10):
+    s = pygame.Surface((w, h), pygame.SRCALPHA)
+    s.fill((16, 16, 30, 170))
+    pygame.draw.line(s, (60, 64, 96, 190), (0, 1), (w, 1))
+    pygame.draw.line(s, (6, 6, 12, 200), (0, h - 1), (w, h - 1))
+    for x in range(0, w, 16):
+        pygame.draw.line(s, (40, 42, 70, 170), (x, 2), (x + 8, h - 2))
+        s.fill((150, 110, 50, 200), (x + 3, 3, 1, 1))
+    return s
+
+
 def mask_to_surface(mask, ramp, bevel=2.0, base=0.58, spec=0.3, noise=0.0, seed=1, profile="bevel"):
     layer = L([], mat=ramp, bevel=bevel, base=base, spec=spec, noise=noise, profile=profile, dither=0.4)
     rgb = _shade(mask, layer, LIGHT, np.random.default_rng(seed))
@@ -175,10 +194,16 @@ class Labyrinthos(Background):
                 if prng.random() < 0.5:
                     self.lights.append((c * cell, r * cell, prng.random() * 6))
         self.next_vent = 40
+        self.girder = girder()
+        self.next_girder = 260
 
     def tick(self):
         w = self.w
         fx = getattr(w, "fx", None)
+        self.next_girder -= self.scroll
+        if self.next_girder <= 0:
+            self.next_girder = self.rng.uniform(380, 620)
+            self.add(self.girder, PF_W / 2, -10, "fore", 1.6)
         self.next_vent -= 1
         if fx is not None and self.next_vent <= 0:
             self.next_vent = random.randint(30, 90)
@@ -264,8 +289,20 @@ class Gorgoneion(Background):
                 self.debris.append(img)
         self.statue = petrified_statue()
         self.next_deb = 30
+        self.fore = []
+        for img in self.debris[-4:]:
+            big = pygame.transform.scale(img, (img.get_width() * 2, img.get_height() * 2))
+            big.fill((20, 14, 30, 170), special_flags=pygame.BLEND_RGBA_MULT)
+            self.fore.append(big)
+        self.next_fore = 200
 
     def tick(self):
+        self.next_fore -= self.scroll
+        if self.next_fore <= 0:
+            self.next_fore = self.rng.uniform(260, 520)
+            img = self.rng.choice(self.fore)
+            x = self.rng.choice((self.rng.uniform(-10, 30), self.rng.uniform(PF_W - 30, PF_W + 10)))
+            self.add(img, x, -40, "fore", 2.2)
         self.next_deb -= self.scroll
         if self.next_deb <= 0:
             self.next_deb = self.rng.uniform(40, 110)
@@ -430,8 +467,14 @@ class Tartaros(Background):
         self.tmp = pygame.Surface((PF_W, PF_H)).convert()
         self.stars1 = stars_layer(50, 57, 0.15)
         self.souls = []
+        self.mists = [soft_blob(140, 80, (60, 40, 90), 70, 70 + i) for i in range(3)]
+        self.next_mist = 120
 
     def tick(self):
+        self.next_mist -= self.scroll
+        if self.next_mist <= 0:
+            self.next_mist = self.rng.uniform(220, 400)
+            self.add(self.rng.choice(self.mists), self.rng.uniform(0, PF_W), -50, "fore", 1.4)
         if random.random() < 0.35:
             self.souls.append([random.uniform(0, PF_W), PF_H + 4, random.uniform(-0.2, 0.2), random.uniform(0.4, 1.0),
                                random.random() * 6])
@@ -539,8 +582,10 @@ class Olympos(Background):
         top = ramp_map(np.clip(sh * 0.8 + n2 * 0.3, 0, 1), [(0, (150, 110, 130)), (0.5, (240, 210, 190)),
                                                               (1, (255, 250, 236))])
         self.clouds = arrays_to_surface(dither_quant(top, 40), a * 235)
-        self.islands = [sky_island(70 + i, 110, 86, "temple" if i % 2 == 0 else "tholos") for i in range(4)]
+        self.islands = [sky_island(70 + i, 132, 104, "temple" if i % 2 == 0 else "tholos") for i in range(4)]
         self.next_i = 90
+        self.wisps = [soft_blob(120, 70, (255, 244, 230), 120, 80 + i, 0.6) for i in range(3)]
+        self.next_wisp = 150
         self.rays = [[random.uniform(0, PF_W), random.uniform(0.2, 0.5)] for _ in range(3)]
         self.flash_t = 0
         self.storm = False
@@ -555,6 +600,11 @@ class Olympos(Background):
             x = self.rng.uniform(40, PF_W - 40)
             self.add(sh, x + 22, -70, "ground", 1.0)
             self.add(img, x, -80, "ground", 1.0)
+        self.next_wisp -= self.scroll
+        if self.next_wisp <= 0:
+            self.next_wisp = self.rng.uniform(240, 420)
+            x = self.rng.choice((self.rng.uniform(-30, 50), self.rng.uniform(PF_W - 50, PF_W + 30)))
+            self.add(self.rng.choice(self.wisps), x, -40, "fore", 1.9)
         for r in self.rays:
             r[0] += r[1]
             if r[0] > PF_W + 60:
