@@ -118,7 +118,7 @@ class HUD:
         info = stages.INFO.get(g.stage_n)
         if info:
             ys = 196
-            ui.meander(screen, x0, ys - 8, 88, (90, 60, 30), (50, 30, 15), 4)
+            ui.meander(screen, x0, ys - 9, 90, (120, 84, 38), (60, 36, 18), 5)
             font.draw(screen, info["num"], x0, ys, GOLD)
             font.draw(screen, info["name"], x0, ys + 11, (255, 255, 255))
             font.draw(screen, info["sub_short"], x0, ys + 22, DIM)
