@@ -5,13 +5,12 @@ import random
 import pygame
 
 from . import palette as P
-from .bosses import Boss, Part, bs, BS
+from .bosses import Boss, Part, bs
 from .entities import Enemy, wait, move_to, PF_W, PF_H
-from .enemies import Hazard, Eagle
+from .enemies import Hazard
 from .sprites import S, NTUR
-from .spritegen import (L, forge, forge_rot, circle, ellipse, rect, line, polyline, arc, star, sym, mirror, move,
-                        rot_index)
-from .fx import glow, Particle, K_GLOW, K_FIRE, K_SPARK, K_RING, K_FLARE, rotated
+from .spritegen import (L, forge, circle, ellipse, rect, line, polyline, arc, star, sym, rot_index)
+from .fx import glow, Particle, K_GLOW, rotated
 from .util import TAU, clamp, ease_out_cubic, ease_in_out, ease_in_cubic, angle_diff
 
 
@@ -357,7 +356,7 @@ class Minotauros(Boss):
         tx = p.x
         yield from move_to(self, tx, 40, 30, ease_in_out)
         # avertissement : trait vertical
-        hz = Hazard(w, tx, 60, tx, PF_H, 46, 46, 1, (255, 60, 60))
+        hz = Hazard(w, tx, 60, tx, PF_H, 46, 46, 1, (255, 60, 60), harmless=True)
         w.hazards.append(hz)
         w.audio.play("roar", tx, 0.8)
         yield from wait(44)

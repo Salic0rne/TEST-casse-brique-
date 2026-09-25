@@ -9,7 +9,7 @@ import pygame
 from . import sfx as sfxmod
 from . import songs
 from .music import Renderer
-from .synth import SR, to_int16_stereo
+from .synth import to_int16_stereo
 
 # volume relatif et polyphonie max par bruitage
 SFX_MIX = {

@@ -7,7 +7,7 @@ import pygame
 
 from . import palette as P
 from .sprites import S, GODS
-from .fx import glow, Particle, K_GLOW, K_SPARK, K_FLARE, K_RING
+from .fx import glow, Particle, K_FLARE
 
 PF_W, PF_H = 256, 270
 

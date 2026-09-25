@@ -1,20 +1,16 @@
 """Scène de jeu : le monde (joueur, ennemis, balles, objets, effets), le score « Kléos »,
 le déroulé d'un stade (intro, combat, boss, bilan), continues et fin de partie."""
-import math
 import random
 
 import pygame
 
-from . import palette as P
-from . import config as C
 from .config import PF_X, PF_W, PF_H, DIFFICULTIES
-from .sprites import S
-from .fx import FX, Juice, Particle, K_GLOW, K_FLARE, K_RING, K_TEXT, glow
+from .fx import FX, Juice
 from .entities import Bullets
 from .player import Player
 from .items import Item
 from . import font as F
-from .util import clamp, lerp, ease_out_cubic, ease_out_back, TAU
+from .util import clamp, lerp, ease_out_cubic
 
 
 class Score:
@@ -175,6 +171,7 @@ class Game:
         self.director = stages.Director(self, stages.SCRIPTS[n])
         self.state = "intro"
         self.state_t = 0
+        self.fade_in = 40
         self.no_miss = True
         self.score.stage_kills = 0
         self.stage_start_score = self.score.score
@@ -550,7 +547,6 @@ class Game:
             k = min(1.0, (total - life) / 10, life / 10)
             if k <= 0:
                 continue
-            wdt = font.width(text)
             x = PF_W // 2
             if (life // 4) % 2 or life > 20:
                 font.draw(f, text, x, yb, col, "center", outline=(10, 6, 22))
@@ -560,6 +556,10 @@ class Game:
             self.draw_stage_card(f)
         elif st == "clear":
             self.draw_tally(f)
+        if self.fade_in > 0:
+            self.fade_in -= 1
+            k = int(255 * (1 - self.fade_in / 40))
+            f.fill((k, k, k), special_flags=pygame.BLEND_MULT)
 
     def draw_warning(self, f):
         t = 200 - self.warning_t

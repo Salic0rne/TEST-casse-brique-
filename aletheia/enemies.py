@@ -5,11 +5,11 @@ import random
 import pygame
 
 from . import palette as P
-from .entities import Enemy, wait, move_to, follow, drift, PF_W, PF_H
+from .entities import Enemy, wait, move_to, follow, PF_W, PF_H
 from .sprites import S, NTUR
 from .spritegen import rot_index
-from .fx import glow, Particle, K_GLOW, K_FIRE, K_SPARK, K_RING, K_FLARE, bolt_points, draw_bolt
-from .util import TAU, ease_out_cubic, ease_in_cubic, ease_in_out, clamp, angle_diff
+from .fx import glow, Particle, K_GLOW, K_FIRE, K_FLARE, bolt_points, draw_bolt
+from .util import TAU, ease_out_cubic, clamp, angle_diff
 
 
 def seg_dist(px, py, x0, y0, x1, y1):
@@ -27,7 +27,7 @@ class Hazard:
     """Rayon ennemi : phase d'avertissement (trait clignotant) puis rayon actif."""
 
     def __init__(self, w, x0, y0, x1, y1, width=8, warn=40, life=40, col=(255, 80, 200), owner=None,
-                 kind="beam", track=None):
+                 kind="beam", track=None, harmless=False):
         self.w = w
         self.x0, self.y0, self.x1, self.y1 = x0, y0, x1, y1
         self.width = width
@@ -37,6 +37,7 @@ class Hazard:
         self.owner = owner
         self.kind = kind
         self.track = track     # fonction -> (x0, y0, x1, y1)
+        self.harmless = harmless
         self.t = 0
         self.alive = True
         if warn > 0:
@@ -53,7 +54,7 @@ class Hazard:
             return
         if self.track is not None:
             self.x0, self.y0, self.x1, self.y1 = self.track()
-        if self.t == self.warn:
+        if self.t == self.warn and not self.harmless:
             if self.kind == "bolt":
                 self.w.audio.play("lightning", self.x1, 0.9)
                 self.w.juice.flash((170, 190, 255), 0.25, 0.08)
@@ -65,7 +66,7 @@ class Hazard:
             self.alive = False
 
     def hits(self, px, py, r):
-        if not self.active:
+        if not self.active or self.harmless:
             return False
         k = 0.7 if self.t - self.warn < 4 else 1.0
         return seg_dist(px, py, self.x0, self.y0, self.x1, self.y1) < self.width * 0.5 * k + r

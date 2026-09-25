@@ -7,7 +7,7 @@ import pygame
 
 from . import palette as P
 from .spritegen import rgb_surface, arrays_to_surface
-from .util import gradient, TAU, lerp
+from .util import gradient, TAU
 
 # ---------------------------------------------------------------------------
 # Caches de sprites lumineux

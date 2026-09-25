@@ -1,10 +1,8 @@
 """Metteur en scène (Director) et scripts des six stades."""
-import math
 import random
 
 from .entities import PF_W, PF_H
 from . import enemies as E
-from .util import TAU
 
 LAST = 6
 

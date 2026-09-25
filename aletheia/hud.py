@@ -9,7 +9,7 @@ from . import font as F
 from . import ui
 from .config import PF_X, PF_W, SCREEN_W, SCREEN_H
 from .sprites import S, icon_surface
-from .spritegen import fbm, arrays_to_surface, rgb_surface
+from .spritegen import fbm, rgb_surface
 from .weapons import WEAPON_NAMES, MODE_NAMES, MODE_GREEK, GOD_NAMES
 from .util import clamp
 
@@ -131,7 +131,6 @@ class HUD:
             col = P.GOD_COLORS[p.god]
             spr = S["orb"][p.god]
             cx, cy = x1 + 14, 44
-            pulse = 1 + 0.5 * math.sin(t * 0.1)
             gl = pygame.Surface((40, 40))
             gl.fill((0, 0, 0))
             from .fx import glow

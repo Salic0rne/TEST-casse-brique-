@@ -6,7 +6,7 @@ import pygame
 
 from . import palette as P
 from . import font as F
-from .spritegen import _shade, L, arrays_to_surface, dilate, LIGHT, forge, rect, circle, ellipse, arc, sym
+from .spritegen import _shade, L, arrays_to_surface, dilate, LIGHT, forge, rect, circle, ellipse
 from .util import clamp
 
 _cache = {}
@@ -83,7 +83,6 @@ def column_surface(h, w=13):
     if key in _cache:
         return _cache[key]
     s = pygame.Surface((w + 8, h), pygame.SRCALPHA)
-    cx = (w + 8) / 2
     # fût cannelé
     ramp = P.MARBLE
     for x in range(w):

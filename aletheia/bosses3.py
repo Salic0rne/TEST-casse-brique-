@@ -6,12 +6,11 @@ import pygame
 
 from . import palette as P
 from .bosses import Boss, Part, bs
-from .entities import Enemy, wait, move_to, PF_W, PF_H
+from .entities import move_to, PF_W, PF_H
 from .enemies import Hazard, Eagle
-from .sprites import S, NTUR
-from .spritegen import (L, forge, circle, ellipse, rect, line, polyline, arc, star, sym, move, rot_index, Sprite)
-from .fx import glow, Particle, K_GLOW, K_FIRE, K_SPARK, K_RING, K_FLARE, K_EMBER, K_SMOKE, bolt_points, draw_bolt
-from .util import TAU, clamp, ease_out_cubic, ease_in_out, ease_in_cubic, angle_diff
+from .spritegen import (L, forge, circle, ellipse, rect, line, polyline, arc, sym, Sprite)
+from .fx import glow, Particle, K_FIRE, bolt_points, draw_bolt
+from .util import TAU, clamp, ease_out_cubic, ease_in_cubic
 
 
 def flipped(name, base):
@@ -259,7 +258,6 @@ class TalosFist(Part):
     def draw_add(self, add):
         Part.draw_add(self, add)
         if self.shadow_r:
-            w = self.w
             tx = self.x
             pygame.draw.circle(add, (90, 20, 10), (int(tx), int(self.owner.slam_y)), self.shadow_r, 2)
 
@@ -351,7 +349,6 @@ class Talos(Boss):
         self.open = True
         w.audio.play("fire_burst", self.x)
         n = int(220 * k_)
-        rot = 0.0
         for k in range(n):
             self.drift()
             fx, fy = self.x, self.y + 12
@@ -866,8 +863,8 @@ class Zeus(Boss):
         for h in hands:
             h.raise_ = 1.0
         xs = [clamp(p.x + (i - (n - 1) / 2) * spread + random.uniform(-6, 6), 8, PF_W - 8) for i in range(n)]
-        for i, x in enumerate(xs):
-            src = hands[i % len(hands)].bolt_tip() if hands else (self.x, self.y)
+        for x in xs:
+            # la foudre tombe des nuées d'orage, au geste des mains divines
             w.hazards.append(Hazard(w, x, -10, x, PF_H + 10, 12, 44, 18, (160, 190, 255), kind="bolt"))
         return hands
 

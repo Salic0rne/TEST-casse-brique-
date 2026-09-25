@@ -11,9 +11,9 @@ import pygame
 
 from . import palette as P
 from .sprites import S
-from .fx import glow, Particle, K_GLOW, K_FIRE, K_SPARK, K_RING, K_FLARE
-from .weapons import (WEAPON_CLASSES, WEAPON_NAMES, MODE_NAMES, MODE_GREEK, Proj, Bomb, GOD_NAMES)
-from .util import clamp, approach, TAU
+from .fx import glow, Particle, K_GLOW, K_FLARE
+from .weapons import (WEAPON_CLASSES, WEAPON_NAMES, MODE_NAMES, MODE_GREEK, Proj, Bomb)
+from .util import clamp, approach
 
 PF_W, PF_H = 256, 270
 MAX_POWER = 5

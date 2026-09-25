@@ -5,11 +5,10 @@ Conventions : le joueur regarde vers le haut (-y), les ennemis vers le bas (+y).
 import math
 
 import numpy as np
-import pygame
 
 from . import palette as P
-from .spritegen import (L, forge, forge_rot, circle, ellipse, rect, line, polyline, arc, star, sym, mirror,
-                        move, ascii_sprite, arrays_to_surface, rgb_surface, Sprite, dilate, fbm, TAU)
+from .spritegen import (L, forge, forge_rot, circle, ellipse, rect, line, polyline, arc, star, sym, ascii_sprite,
+                        arrays_to_surface, Sprite, TAU)
 
 S = {}          # nom -> Sprite ou liste de Sprites
 NROT = 32       # orientations des projectiles allongés

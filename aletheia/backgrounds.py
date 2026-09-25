@@ -6,9 +6,8 @@ import numpy as np
 import pygame
 
 from . import palette as P
-from .spritegen import (L, forge, circle, ellipse, rect, line, polyline, arc, star, sym, move, fbm, box_blur,
-                        arrays_to_surface, rgb_surface, dilate, erode, distance, Sprite, value_noise, TAU)
-from .fx import glow, Particle, K_EMBER, K_GLOW, K_SMOKE
+from .spritegen import (L, forge, circle, rect, line, move, fbm, box_blur, arrays_to_surface, rgb_surface, dilate, Sprite)
+from .fx import glow
 
 PF_W, PF_H = 256, 270
 CACHE = {}
@@ -35,7 +34,6 @@ def dither_quant(rgb, levels=24):
 
 def blob_mask(w, h, r, seed, rough=0.35, octaves=3):
     """Masque d'île / de nuage : cercle déformé par du bruit."""
-    rng = np.random.default_rng(seed)
     n = fbm(w, h, 4, 4, octaves, seed=seed)
     xx, yy = np.mgrid[0:w, 0:h].astype(np.float32)
     d = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2)
@@ -273,8 +271,10 @@ def island_sprite(w, h, seed, rich=True):
     lc = np.where(rocky[..., None], rock_col, land_col)
     rgb[land] = lc[land]
     rgb = dither_quant(rgb, 28)
-    # contour sombre des terres
+    # écume sur le rivage
     edge = dilate(beach) & ~beach
+    rgb[edge] = (228, 246, 240)
+    alpha[edge] = 210
     s = arrays_to_surface(rgb, alpha)
     # ruines
     if rich:

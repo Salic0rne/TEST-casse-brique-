@@ -11,8 +11,7 @@ import pygame
 from . import palette as P
 from .sprites import S, NROT
 from .spritegen import rot_index
-from .fx import (glow, Particle, K_FIRE, K_SPARK, K_GLOW, K_FLARE, K_RING, K_EMBER, K_STREAK, bolt_points,
-                 draw_bolt, draw_bolt_tree)
+from .fx import (glow, Particle, K_FIRE, K_GLOW, K_STREAK, bolt_points, draw_bolt, draw_bolt_tree)
 from .util import TAU, clamp, angle_diff, gradient
 
 PF_W, PF_H = 256, 270

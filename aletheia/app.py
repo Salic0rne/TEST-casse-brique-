@@ -1,13 +1,10 @@
 """Application : fenêtre (mise à l'échelle entière, plein écran, filtre CRT), boucle principale,
 chargement procédural, transitions entre scènes."""
-import math
 import os
 import sys
-import time
 
 import pygame
 
-from . import config as C
 from .config import SCREEN_W, SCREEN_H, FPS, PF_W, PF_H, Save
 from . import font as F
 

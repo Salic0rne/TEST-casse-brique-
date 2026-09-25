@@ -6,13 +6,11 @@ import random
 import pygame
 
 from . import palette as P
-from .entities import Enemy, wait, move_to, follow, drift, PF_W, PF_H
+from .entities import Enemy, wait, move_to, PF_W, PF_H
 from .sprites import S, NTUR
-from .spritegen import (L, forge, forge_rot, circle, ellipse, rect, line, polyline, arc, star, sym, rot_index,
-                        Sprite)
-from .fx import glow, Particle, K_GLOW, K_FIRE, K_SPARK, K_RING, K_FLARE, K_EMBER, K_SMOKE
-from .enemies import Hazard
-from .util import TAU, clamp, ease_out_cubic, ease_in_out, ease_in_cubic, angle_diff, lerp
+from .spritegen import (L, forge, circle, ellipse, line, arc, sym, rot_index)
+from .fx import glow, Particle, K_GLOW
+from .util import TAU, clamp, ease_out_cubic, ease_in_out, ease_in_cubic, angle_diff
 
 BS = {}   # sprites de boss (construits à la demande)
 
@@ -550,7 +548,6 @@ class Ketos(Boss):
 
     def phase1(self):
         w = self.w
-        k0 = self.t
         for k in range(360):
             self.sway(self.t)
             if k % int(70 / w.diff["rate"]) == 20 and self.can_fire():
@@ -647,7 +644,6 @@ class Ketos(Boss):
     def draw(self, surf):
         # queue puis anneaux (du plus loin au plus proche), puis la tête
         if self.segs:
-            last = self.segs[-1]
             tr = self.trail
             k = (len(self.segs) + 1) * 7
             if len(tr) > k:

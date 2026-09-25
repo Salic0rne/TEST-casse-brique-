@@ -4,11 +4,10 @@ import random
 
 import pygame
 
-from . import palette as P
 from .sprites import S, NROT, BCOL
 from .spritegen import rot_index
-from .fx import glow, Particle, K_FIRE, K_SPARK, K_GLOW
-from .util import TAU, clamp, ease_in_out, catmull, angle_to
+from .fx import glow, Particle, K_GLOW
+from .util import TAU, ease_in_out, catmull
 
 PF_W, PF_H = 256, 270
 
@@ -383,7 +382,6 @@ class Bullets:
 
     def draw(self, surf):
         blits = []
-        t = self.w.t
         for b in self.list:
             if b.frames is not None:
                 if b.kind == "star":

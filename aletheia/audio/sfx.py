@@ -4,8 +4,8 @@ import math
 import numpy as np
 
 from .synth import (SR, ns, tarr, osc, env_exp, env_adsr, lowpass, highpass, bandpass, sweep_lowpass, pluck,
-                    fm, additive, crackle, softclip, make_ir, reverb_stereo, echo, expdrop, sweep, rng, peaks,
-                    formant, note_freq, fade_edges, vibrato)
+                    fm, additive, crackle, softclip, make_ir, reverb_stereo, echo, expdrop, sweep, rng, formant,
+                    note_freq, fade_edges, vibrato)
 
 REG = {}
 _IR = {}

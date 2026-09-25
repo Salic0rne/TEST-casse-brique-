@@ -15,8 +15,8 @@ import re
 import numpy as np
 
 from .synth import (SR, ns, tarr, osc, env_exp, env_adsr, lowpass, highpass, bandpass, pluck, fm, additive,
-                    vibrato, softclip, make_ir, reverb_stereo, echo, pan_gains, midi_freq, note_midi, formant,
-                    peaks, rng, expdrop, sweep_lowpass)
+                    vibrato, softclip, make_ir, reverb_stereo, echo, pan_gains, midi_freq, note_midi, peaks,
+                    rng, expdrop)
 
 NOTE_RE = re.compile(r"^([A-Ga-g])([#b]?)(-?\d)([!?]?)$")
 CHORD_RE = re.compile(r"^([A-G])([#b]?)(maj7|m7|m9|madd9|m|7|sus4|sus2|dim|aug|add9|6)?([!?]?)$")

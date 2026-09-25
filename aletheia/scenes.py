@@ -11,9 +11,9 @@ from . import font as F
 from . import ui
 from .app import Scene
 from .config import SCREEN_W, SCREEN_H, PF_X, PF_W, PF_H, DIFFICULTIES
-from .spritegen import fbm, arrays_to_surface, rgb_surface, box_blur, L, forge, rect, circle, sym, ellipse, arc
-from .fx import glow, bolt_points, draw_bolt, draw_bolt_tree
-from .util import clamp, lerp, ease_out_cubic, ease_out_back, TAU
+from .spritegen import fbm, arrays_to_surface, rgb_surface, L, forge, rect, circle
+from .fx import draw_bolt_tree
+from .util import clamp, ease_out_back, TAU
 
 WHITE = (255, 255, 255)
 PALE = (200, 206, 240)
@@ -216,7 +216,15 @@ class LoadingScene(Scene):
 
     def s_hud(self, cb):
         from .hud import HUD
+        from .sprites import S
         self.app.hud = HUD()
+        try:
+            icon = pygame.Surface((32, 32), pygame.SRCALPHA)
+            ship = S["player"][2].img
+            icon.blit(ship, (16 - ship.get_width() // 2, 16 - ship.get_height() // 2))
+            pygame.display.set_icon(icon)
+        except pygame.error:
+            pass
         cb(1.0)
 
     def s_sfx(self, cb):
@@ -378,9 +386,13 @@ class TitleScene(Scene):
             self.idle += 1
         if self.t > 30:
             self.menu.update(inp, self.app.audio)
-        if self.idle > 60 * 25:
+        if self.idle > 60 * 22:
             self.idle = 0
-            self.app.goto(ScoresScene(self.app, self, auto=True))
+            TitleScene.attract = (getattr(TitleScene, "attract", 0) + 1) % 2
+            if TitleScene.attract:
+                self.app.goto(DemoScene(self.app))
+            else:
+                self.app.goto(ScoresScene(self.app, self, auto=True))
 
     def draw(self, s):
         self.art.draw(s)
@@ -600,6 +612,50 @@ class GameScene(Scene):
             cx = PF_X + PF_W // 2
             ui.draw_metal(s, "PAUSE", cx, 96, 2)
             self.pause_menu.draw(s, cx, 130, 16, 170)
+
+
+class DemoScene(Scene):
+    """Démonstration automatique (mode « attract » des bornes d'arcade)."""
+    STAGES = (1, 2, 3, 4, 5, 6)
+    n = 0
+
+    def __init__(self, app):
+        super().__init__(app)
+        from .game import Game
+        from .bot import Bot
+        stage = DemoScene.STAGES[DemoScene.n % len(DemoScene.STAGES)]
+        DemoScene.n += 1
+        self.g = Game(app, stage)
+        self.g.cheat = True
+        self.g.player.power = random.randint(2, 5)
+        self.g.player.mode = random.randrange(3)
+        self.g.player.set_weapon(random.choice(["zeus", "apollo", "artemis", "poseidon", "athena", "hephaestus"]))
+        self.bot = Bot(self.g)
+        app.input.bot = self.bot
+        self.t = 0
+
+    def update(self):
+        self.t += 1
+        inp = self.app.input
+        real = inp.any_key and self.t > 10
+        self.g.update(inp)
+        if real or self.t > 60 * 40 or self.g.state not in ("intro", "play"):
+            self.leave()
+
+    def leave(self):
+        if self.app.next_scene is None:
+            self.app.input.bot = None
+            self.app.audio.stop_loops()
+            self.app.goto(TitleScene(self.app))
+
+    def draw(self, s):
+        s.fill((0, 0, 0), (PF_X - 10, 0, PF_W + 20, SCREEN_H))
+        self.g.draw(s)
+        self.app.hud.draw(s, self.g)
+        if (self.t // 30) % 2 == 0:
+            ui.draw_metal(s, "DÉMO", PF_X + PF_W // 2, 222, 2)
+            F.FONT.draw(s, "APPUIE SUR UNE TOUCHE", PF_X + PF_W // 2, 240, (230, 230, 255), "center",
+                        outline=(10, 6, 22))
 
 
 # ---------------------------------------------------------------------------

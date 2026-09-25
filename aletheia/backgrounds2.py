@@ -7,11 +7,10 @@ import pygame
 
 from . import palette as P
 from .backgrounds import (Background, ramp_map, dither_quant, blob_mask, temple_sprite, column_top_sprite,
-                          _Glints, PF_W, PF_H)
-from .spritegen import (fbm, rgb_surface, arrays_to_surface, box_blur, dilate, erode, L, forge, circle, ellipse,
-                        rect, line, polyline, arc, sym, star, _shade, LIGHT, Sprite, TAU)
-from .fx import glow, Particle, K_SMOKE, K_EMBER, K_GLOW, K_FIRE
-from . import ui
+                          PF_W, PF_H)
+from .spritegen import (fbm, rgb_surface, arrays_to_surface, box_blur, dilate, erode, L, forge, circle, rect,
+                        line, polyline, sym, _shade, LIGHT, TAU)
+from .fx import glow, Particle, K_SMOKE
 
 
 def blur_wrap(a, r):
@@ -539,7 +538,6 @@ def tholos_sprite(seed=0, r=16):
 def sky_island(seed, w=100, h=80, kind="temple"):
     v, m = blob_mask(w, h, 0.6, seed, 0.25)
     rgb = mask_to_surface(m, P.OLIVE, bevel=4, base=0.55, noise=0.05, seed=seed)
-    n = fbm(w, h, 6, 6, 3, seed=seed + 1)
     plaza = (v > 0.66) & (v < 0.76)
     rgb[plaza] = rgb[plaza] * 0.3 + np.array(P.MARBLE[4], np.float32) * 0.7
     rim = m & ~erode(erode(m))
@@ -588,6 +586,8 @@ class Olympos(Background):
         self.next_wisp = 150
         self.rays = [[random.uniform(0, PF_W), random.uniform(0.2, 0.5)] for _ in range(3)]
         self.flash_t = 0
+        self.flash_x = PF_W / 2
+        self.flash_y = PF_H / 3
         self.storm = False
         self.storm_k = 0.0
         self.dark = pygame.Surface((PF_W, PF_H)).convert()
