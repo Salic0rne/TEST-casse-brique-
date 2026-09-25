@@ -315,6 +315,12 @@ class Player:
                      special_flags=pygame.BLEND_ADD)
             pygame.draw.line(add, (120, 220, 255), (x, y), (x, y + ln), 2)
             pygame.draw.line(add, (255, 255, 255), (x, y), (x, y + ln * 0.5), 1)
+        m = self.w.score.mult
+        if m >= 4 and self.visible():
+            # aura de gloire (Kléos élevé)
+            k = (m - 3) / 5 * (0.75 + 0.25 * math.sin(self.t * 0.2))
+            g = glow(20, (int(90 * k), int(70 * k), int(20 * k)))
+            add.blit(g, (int(self.x - 20), int(self.y - 20)), special_flags=pygame.BLEND_ADD)
         if self.invuln > 0 and self.control:
             k = min(1.0, self.invuln / 60)
             r = 16 + math.sin(self.t * 0.3) * 1.5

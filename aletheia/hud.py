@@ -157,7 +157,10 @@ class HUD:
             font.draw(screen, "DIVIN !", x1, 60, (90, 90, 130))
         # puissance / blindage
         yp = 104
-        font.draw(screen, "PUISSANCE", x1, yp, DIM)
+        if p.power == 0 and not p.dead and (t // 12) % 2 == 0:
+            font.draw(screen, "BLINDAGE CRITIQUE", x1, yp, (255, 90, 100))
+        else:
+            font.draw(screen, "PUISSANCE", x1, yp, DIM)
         for i in range(5):
             cx = x1 + 5 + i * 17
             cy = yp + 16

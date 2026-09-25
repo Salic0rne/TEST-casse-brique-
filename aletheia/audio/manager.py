@@ -55,7 +55,20 @@ class Audio:
         data = sfxmod.build_all(progress)
         if not self.enabled:
             return
+        from .synth import highpass
         for name, (L, R) in data.items():
+            # hygiène : pas de composante continue, attaque adoucie (pas de clic)
+            L = highpass(L, 25, 1)
+            R = highpass(R, 25, 1) if R is not L else L
+            fi = min(len(L), 66)
+            ramp = np.linspace(0.0, 1.0, fi)
+            L = L.copy()
+            L[:fi] *= ramp
+            if R is not L:
+                R = R.copy()
+                R[:fi] *= ramp
+            else:
+                R = L
             # coupe les traînes quasi silencieuses
             amp = np.maximum(np.abs(L), np.abs(R))
             pk = float(amp.max()) or 1.0

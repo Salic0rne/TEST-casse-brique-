@@ -62,7 +62,7 @@ def osc(kind, freq, n, duty=0.5, ph0=0.0, seed=None):
         y = np.where(t < duty, 1.0, -1.0)
         y += _polyblep(t, dt)
         y -= _polyblep((t - duty) % 1.0, dt)
-        return y
+        return y - (2.0 * duty - 1.0)   # onde à moyenne nulle (pas de composante continue)
     raise ValueError(kind)
 
 
@@ -192,6 +192,7 @@ def pluck(freq, dur, bright=0.6, decay=0.996, seed=None):
         k = max(1, int((1.0 - bright) * 6))
         for _ in range(k):
             burst = 0.5 * (burst + np.roll(burst, 1))
+    burst -= burst.mean()
     out = np.zeros(n + N + 1)
     out[1:N + 1] = burst
     start = N + 1
