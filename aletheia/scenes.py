@@ -637,6 +637,7 @@ class DemoScene(Scene):
         DemoScene.n += 1
         self.g = Game(app, stage)
         self.g.cheat = True
+        self.g.demo = True
         self.g.player.power = random.randint(2, 5)
         self.g.player.mode = random.randrange(3)
         self.g.player.set_weapon(random.choice(["zeus", "apollo", "artemis", "poseidon", "athena", "hephaestus"]))

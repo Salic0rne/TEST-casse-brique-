@@ -143,6 +143,8 @@ class Game:
         self.gameover = False
         self.boss_card = None
         self.start_gift = stage > 1
+        self.tips = set()
+        self.demo = False
         self.load_stage(stage)
         a = app.args
         if a is not None:
@@ -202,6 +204,7 @@ class Game:
         for i in range(n):
             if kind == "orb":
                 self.items.append(Item(self, x, y, "orb"))
+                self.tip("orb", "L'ORBE CHANGE DE DIEU : CHOISIS !")
             else:
                 self.items.append(Item(self, x + random.uniform(-4, 4), y + random.uniform(-4, 4), kind,
                                        vx=vx if vx is not None else None, vy=vy if vy is not None else None))
@@ -225,6 +228,13 @@ class Game:
 
     def banner(self, text, col=(255, 255, 255), life=120, sub=None):
         self.banners.append([text, col, life, life, sub])
+
+    def tip(self, key, text, delay_ok=True):
+        """Conseil affiché une seule fois par partie (jamais en démo)."""
+        if self.demo or key in self.tips:
+            return
+        self.tips.add(key)
+        self.banner(text, (200, 230, 255), 170)
 
     # --- requêtes pour les armes --------------------------------------------
     def nearest_target(self, x, y, maxd=9999):
@@ -365,6 +375,9 @@ class Game:
             if self.state_t >= 110:
                 self.state = "play"
                 p.control = True
+                if self.stage_n == 1:
+                    lab = self.app.input.labels
+                    self.tip("tir", f"MAINTIENS {lab['fire']} POUR TIRER")
                 if self.start_gift and p.god is None:
                     # départ d'un stade avancé : un présent des dieux
                     self.start_gift = False

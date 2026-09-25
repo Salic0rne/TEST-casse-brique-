@@ -24,8 +24,9 @@ pip install -r requirements.txt      # pygame + numpy
 python main.py
 ```
 
-Au premier lancement, la forge prépare les sprites, les bruitages et l'hymne du titre
-(quelques secondes) ; les autres musiques sont rendues en tâche de fond pendant que tu joues.
+Python 3.8 ou plus récent. À chaque lancement, la forge sculpte les sprites et synthétise les
+bruitages (≈ 2 s) ; les musiques sont ensuite composées en tâche de fond — l'hymne du titre
+arrive quelques secondes après l'écran-titre, les autres pendant que tu joues.
 
 ## Commandes
 

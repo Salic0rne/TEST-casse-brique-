@@ -277,6 +277,8 @@ class Hermes(Enemy):
 
     def behave(self):
         self.vx = self.speed * self.side
+        if self.drop == "orb":
+            self.w.tip("hermes", "ABATS LE MESSAGER D'HERMÈS !")
         while True:
             self.y = self.y0 + math.sin(self.t * 0.05) * self.amp
             yield

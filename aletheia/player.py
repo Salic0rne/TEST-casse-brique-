@@ -95,6 +95,8 @@ class Player:
         w.fx.ring(self.x, self.y, 6, 40, 22, P.GOD_COLORS[god], 3)
         w.juice.flash(P.GOD_COLORS[god], 0.25, 0.05)
         w.hud_flash_weapon = 40
+        lab = w.app.input.labels
+        w.tip("mode", f"{lab['mode']} : CHANGE LE MODE DE L'ARME")
 
     def cycle_mode(self):
         w = self.w
@@ -216,6 +218,7 @@ class Player:
             w.fx.explosion(self.x, self.y, 0.7, grad=P.PLASMA, smoke_on=False)
             w.fx.ring(self.x, self.y, 4, 48, 20, (255, 120, 140), 3)
             w.popup(self.x, self.y - 22, "BLINDAGE -%d" % lost, (255, 110, 120), 50)
+            w.tip("armor", "LA PUISSANCE TE SERT DE BLINDAGE")
             w.score.break_chain(half=True)
             # l'ambroisie perdue s'éparpille : on peut en rattraper une partie
             for i in range(lost + 1):
