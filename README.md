@@ -91,12 +91,12 @@ qu'en QWERTY (les libellés du panneau de droite s'adaptent à ton clavier).
 
 | | Stade | Décor | Gardien | Boss |
 |---|---|---|---|---|
-| Α' | **THALASSA** | la mer de Poséidon au crépuscule, cumulus et îles à temples, statue engloutie | Skylla | Kétos |
+| Α' | **THALASSA** | la mer de Poséidon au crépuscule (rayons du couchant, cumulus), îles à temples, statue engloutie | Skylla | Kétos |
 | Β' | **LABYRINTHOS** | le dédale orbital de Knossos | Daidalos (l'automate ailé) | Minotauros |
 | Γ' | **GORGONEION** | la nuée de Méduse, héros pétrifiés | Les Graiai (un seul œil pour trois) | Méduse |
 | Δ' | **HEPHAISTEION** | la forge sur Io, rivières de lave, brume de chaleur | Les Cyclopes | Talos |
 | Ε' | **TARTAROS** | le Styx au bord d'un trou noir | Charon | Kerberos |
-| ΣΤ' | **OLYMPOS** | au-dessus des nuées de Jupiter, mer de cumulus traversée d'éclairs | Nikè | Zeus-Ω |
+| ΣΤ' | **OLYMPOS** | au-dessus des nuées de Jupiter, mer de cumulus dorée par le soleil et traversée d'éclairs | Nikè | Zeus-Ω |
 
 Quatre difficultés : **Nymphe**, **Héros**, **Demi-dieu**, **Titan**. Dans chacune, la difficulté
 **monte progressivement** : le premier stade est une mise en jambes (balles plus lentes et moins

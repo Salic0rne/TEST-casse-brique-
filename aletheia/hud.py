@@ -9,7 +9,7 @@ from . import font as F
 from . import ui
 from .config import PF_X, PF_W, SCREEN_W, SCREEN_H
 from .sprites import S, icon_surface
-from .spritegen import fbm, rgb_surface
+from .spritegen import fbm, rgb_surface, opaque_surface
 from .weapons import WEAPON_NAMES, MODE_NAMES, MODE_GREEK, GOD_NAMES
 from .util import clamp
 
@@ -21,7 +21,7 @@ DIM = (120, 120, 170)
 
 def build_panels():
     """Fond statique des deux panneaux (dégradé, texture, méandres, colonnes ioniques)."""
-    s = pygame.Surface((SCREEN_W, SCREEN_H)).convert()
+    s = opaque_surface((SCREEN_W, SCREEN_H))
     w = PF_X
     n = fbm(SCREEN_W, SCREEN_H, 12, 8, 4, seed=5)
     yy = np.linspace(0, 1, SCREEN_H)[None, :]
@@ -131,7 +131,7 @@ class HUD:
             col = P.GOD_COLORS[p.god]
             spr = S["orb"][p.god]
             cx, cy = x1 + 14, 44
-            gl = pygame.Surface((40, 40))
+            gl = opaque_surface((40, 40))
             gl.fill((0, 0, 0))
             from .fx import glow
             gg = glow(16, (col[0] // 3, col[1] // 3, col[2] // 3))

@@ -7,7 +7,8 @@ import pygame
 
 from . import palette as P
 from . import clouds
-from .spritegen import (L, forge, circle, rect, line, move, fbm, box_blur, arrays_to_surface, rgb_surface, dilate, Sprite)
+from .spritegen import (L, forge, circle, rect, line, move, fbm, box_blur, arrays_to_surface, rgb_surface, dilate, Sprite,
+                        opaque_surface)
 from .fx import glow
 
 PF_W, PF_H = 256, 270
@@ -374,6 +375,8 @@ class Thalassa(Background):
                                                       (160, 110, "cluster")))]
         self.wisps = [clouds.wisp(170, 60, 420 + i, clouds.DUSK, alpha_max=0.42) for i in range(3)]
         self.next_wisp = 400
+        # rayons du soleil couchant (hors champ, en haut à gauche) qui percent entre les nuages
+        self.rays = clouds.Rays(PF_W, PF_H, (40, -110), 7, (255, 168, 110), gain=0.17)
         self.glints = _Glints()
         self.next_rock = 60
         self.next_cloud = 100
@@ -381,7 +384,7 @@ class Thalassa(Background):
     def make_statue(self):
         """Statue engloutie de Poséidon : silhouette floue vue à travers l'eau."""
         w, h = 200, 260
-        s = pygame.Surface((w, h))
+        s = opaque_surface((w, h))
         s.fill((0, 0, 0))
         c = (255, 255, 255)
         pygame.draw.ellipse(s, c, (60, 40, 80, 96))
@@ -413,13 +416,16 @@ class Thalassa(Background):
             self.add(self.rng.choice(self.rocks), self.rng.uniform(10, PF_W - 10))
         self.next_cloud -= s
         if self.next_cloud <= 0:
-            self.next_cloud = self.rng.uniform(210, 380)
-            img, sh = self.rng.choice(self.clouds)
-            x = self.rng.uniform(10, PF_W - 10)
-            y = -img.get_height() / 2 - 4
+            self.next_cloud = self.rng.uniform(150, 280)
             spd = self.rng.uniform(1.2, 1.35)
-            self.add(sh, x + 18, y + 24, "shade", spd)
-            self.add(img, x, y, "mid", spd)
+            x = self.rng.uniform(10, PF_W - 10)
+            # parfois une petite formation de deux ou trois cumulus
+            for i in range(self.rng.choice((1, 1, 2, 2, 3))):
+                img, sh = self.rng.choice(self.clouds)
+                cx = x + (0 if i == 0 else self.rng.choice((-1, 1)) * self.rng.uniform(60, 110))
+                y = -img.get_height() / 2 - 4 - i * self.rng.uniform(30, 70)
+                self.add(sh, cx + 18, y + 24, "shade", spd)
+                self.add(img, cx, y, "mid", spd)
         self.next_wisp -= s
         if self.next_wisp <= 0:
             self.next_wisp = self.rng.uniform(420, 700)
@@ -468,9 +474,10 @@ class Thalassa(Background):
     def draw_add(self, a):
         Background.draw_add(self, a)
         self.glints.draw(a, (255, 210, 160))
-        # halo du soleil couchant en haut de l'écran
-        g = glow(90, (40, 20, 10))
-        a.blit(g, (PF_W // 2 - 90, -120), special_flags=pygame.BLEND_ADD)
+        # halo du soleil couchant en haut de l'écran et rayons crépusculaires
+        g = glow(110, (60, 30, 14))
+        a.blit(g, (40 - 110, -110 - 60), special_flags=pygame.BLEND_ADD)
+        self.rays.draw(a, self.t)
 
 
 # ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import pygame
 from .config import PF_X, PF_W, PF_H, DIFFICULTIES, STAGE_RAMP
 from .fx import FX, Juice, Particle, K_STREAK
 from .entities import Bullets
+from .spritegen import opaque_surface
 from .player import Player
 from .items import Item
 from . import font as F
@@ -114,8 +115,8 @@ class Game:
         self.fx = FX()
         self.juice = Juice()
         self.juice.enabled = self.save.options.get("shake", True)
-        self.frame = pygame.Surface((PF_W, PF_H)).convert()
-        self.add = pygame.Surface((PF_W, PF_H)).convert()
+        self.frame = opaque_surface((PF_W, PF_H))
+        self.add = opaque_surface((PF_W, PF_H))
         self.score = Score(self)
         self.player = Player(self, self.diff["lives"])
         self.player.power = self.diff.get("start_power", 0)

@@ -9,8 +9,8 @@ from . import palette as P
 from . import clouds
 from .backgrounds import (Background, ramp_map, dither_quant, blob_mask, temple_sprite, column_top_sprite,
                           PF_W, PF_H)
-from .spritegen import (fbm, rgb_surface, arrays_to_surface, box_blur, dilate, erode, L, forge, circle, rect,
-                        line, polyline, sym, _shade, LIGHT, TAU)
+from .spritegen import (fbm, rgb_surface, opaque_surface, arrays_to_surface, box_blur, dilate, erode, L, forge,
+                        circle, rect, line, polyline, sym, _shade, LIGHT, TAU)
 from .fx import glow, Particle, K_SMOKE
 
 
@@ -132,7 +132,7 @@ class Labyrinthos(Background):
         floor = ramp_map(np.clip(v, 0, 1), [(0, (6, 6, 16)), (0.3, (20, 22, 42)), (0.5, (38, 42, 68)),
                                             (1, (92, 100, 140))])
         self.floor = rgb_surface(dither_quant(floor, 40))
-        self.glow_tex = pygame.Surface((W, H)).convert()
+        self.glow_tex = opaque_surface((W, H))
         self.glow_tex.fill((0, 0, 0))
         prng = random.Random(22)
         for cx in range(0, W, tile):
@@ -159,7 +159,7 @@ class Labyrinthos(Background):
         # murs du dédale
         cols, rows, cell = 4, 8, 64
         right, down = torus_maze(cols, rows, 23, braid=0.12)
-        ms = pygame.Surface((W, H))
+        ms = opaque_surface((W, H))
         ms.fill((0, 0, 0))
         wt = 13
         for c in range(cols):
@@ -464,7 +464,7 @@ class Tartaros(Background):
         rm = np.zeros((W, H, 3), np.float32)
         rm[river] = 255
         self.river_mask = rgb_surface(rm)
-        self.tmp = pygame.Surface((PF_W, PF_H)).convert()
+        self.tmp = opaque_surface((PF_W, PF_H))
         self.stars1 = stars_layer(50, 57, 0.15)
         self.souls = []
         self.mists = [soft_blob(140, 80, (60, 40, 90), 70, 70 + i) for i in range(3)]
@@ -584,18 +584,18 @@ class Olympos(Background):
                                haze=(92, 70, 132), haze_k=0.45, mist=0.35)
         self.mid = clouds.bank(PF_W, 768, 92, clouds.OLYMP, clusters=12, size=(64, 118), alpha_max=0.95,
                                shadow_col=(26, 14, 50), shadow_k=0.5, glow_col=(150, 175, 255))
-        self.ltmp = pygame.Surface((145, 145)).convert()
+        self.ltmp = opaque_surface((145, 145))
         self.islands = [sky_island(70 + i, 132, 104, "temple" if i % 2 == 0 else "tholos") for i in range(4)]
         self.next_i = 90
         self.wisps = [clouds.wisp(160, 60, 80 + i) for i in range(3)]
         self.next_wisp = 150
-        self.rays = [[random.uniform(0, PF_W), random.uniform(0.2, 0.5)] for _ in range(3)]
+        self.rays = clouds.Rays(PF_W, PF_H, (-60, -90), 17, (255, 214, 150), gain=0.2)
         self.flash_t = 0
         self.flash_x = PF_W / 2
         self.flash_y = PF_H / 3
         self.storm = False
         self.storm_k = 0.0
-        self.dark = pygame.Surface((PF_W, PF_H)).convert()
+        self.dark = opaque_surface((PF_W, PF_H))
 
     def tick(self):
         self.next_i -= self.scroll
@@ -610,10 +610,6 @@ class Olympos(Background):
             self.next_wisp = self.rng.uniform(240, 420)
             x = self.rng.choice((self.rng.uniform(-30, 50), self.rng.uniform(PF_W - 50, PF_W + 30)))
             self.add(self.rng.choice(self.wisps), x, -40, "fore", 1.9)
-        for r in self.rays:
-            r[0] += r[1]
-            if r[0] > PF_W + 60:
-                r[0] = -60
         if self.storm:
             self.storm_k = min(1.0, self.storm_k + 0.005)
         if random.random() < 0.006 + 0.02 * self.storm_k:
@@ -652,9 +648,8 @@ class Olympos(Background):
     def draw_add(self, a):
         k = 1 - self.storm_k
         if k > 0.05:
-            for x, _ in self.rays:
-                pygame.draw.polygon(a, (int(18 * k), int(14 * k), int(6 * k)),
-                                    [(x, 0), (x + 26, 0), (x - 44, PF_H), (x - 80, PF_H)])
+            # rayons du soleil entre les cumulus (s'éteignent quand l'orage de Zeus se lève)
+            self.rays.draw(a, self.t, k, int(math.sin(self.t * 0.004) * 8))
         if self.flash > 0.05:
             # l'éclair illumine les nuées de l'intérieur (bleuté, épais au cœur des cumulus)
             R = 72

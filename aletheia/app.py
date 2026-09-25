@@ -7,6 +7,7 @@ import pygame
 
 from .config import SCREEN_W, SCREEN_H, FPS, PF_W, PF_H, Save
 from . import font as F
+from .spritegen import opaque_surface
 
 
 class Display:
@@ -57,19 +58,19 @@ class Display:
         self.k = k
         self.dw, self.dh = SCREEN_W * k, SCREEN_H * k
         self.dx, self.dy = (W - self.dw) // 2, (H - self.dh) // 2
-        self.scaled = pygame.Surface((self.dw, self.dh)).convert() if k > 1 else None
+        self.scaled = opaque_surface((self.dw, self.dh)) if k > 1 else None
         self.scan = self.make_scanlines(k) if (self.save.options.get("crt") and k >= 2) else None
         self.window.fill((0, 0, 0))
 
     def make_scanlines(self, k):
-        s = pygame.Surface((self.dw, self.dh)).convert()
+        s = opaque_surface((self.dw, self.dh))
         s.fill((255, 255, 255))
         dark = {2: 200, 3: 170}.get(k, 150)
         for y in range(k - 1, self.dh, k):
             s.fill((dark, dark, dark), (0, y, self.dw, 1))
         if k >= 3:
             tints = ((255, 238, 238), (238, 255, 238), (238, 238, 255))
-            tint = pygame.Surface((self.dw, self.dh)).convert()
+            tint = opaque_surface((self.dw, self.dh))
             for x in range(self.dw):
                 tint.fill(tints[x % 3], (x, 0, 1, self.dh))
             s.blit(tint, (0, 0), special_flags=pygame.BLEND_MULT)
@@ -129,7 +130,7 @@ class App:
                 mute = True
         self.save = Save()
         self.display = Display(self.save, headless)
-        self.screen = pygame.Surface((SCREEN_W, SCREEN_H)).convert()
+        self.screen = opaque_surface((SCREEN_W, SCREEN_H))
         self.clock = pygame.time.Clock()
         from .inputs import Input
         from .audio.manager import Audio

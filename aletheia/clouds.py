@@ -12,6 +12,7 @@ import math
 import random
 
 import numpy as np
+import pygame
 
 from .spritegen import fbm, box_blur, arrays_to_surface, rgb_surface, BAYER, LIGHT, TAU
 
@@ -289,3 +290,52 @@ def blit_torus(dst, tex, ox, oy, area=None, flags=0):
             dst.blit(tex, (x, y), None, flags)
             x += tw
         y += th
+
+
+def _sun_rays(w, h, sun, seed, col, bands=8, gain=0.16, width=(0.012, 0.045)):
+    """Rayons crépusculaires (valeurs RGB additives) : faisceaux doux qui divergent depuis un soleil hors
+    champ, plus intenses près de la source."""
+    rng = np.random.default_rng(seed)
+    xx, yy = np.mgrid[0:w, 0:h].astype(np.float32)
+    dx, dy = xx - sun[0], yy - sun[1]
+    ang = np.arctan2(dy, dx)
+    dist = np.sqrt(dx * dx + dy * dy)
+    a0, a1 = float(ang.min()), float(ang.max())
+    v = np.zeros((w, h), np.float32)
+    for _ in range(bands):
+        c = rng.uniform(a0, a1)
+        wd = rng.uniform(*width)
+        v += rng.uniform(0.45, 1.0) * np.exp(-((ang - c) / wd) ** 2)
+    d0, d1 = float(dist.min()), float(dist.max())
+    fall = np.clip(1.0 - (dist - d0) / max(1.0, d1 - d0) * 0.85, 0, 1) ** 1.4
+    return (np.clip(v, 0, 1.2) * fall * gain)[..., None] * np.asarray(col, np.float32)[None, None, :]
+
+
+class Rays:
+    """Deux champs de rayons en fondu enchaîné lent (précalculé) : la lumière « respire » à travers
+    les nuages. Une seule copie additive par image."""
+    STEPS = 24
+
+    def __init__(self, w, h, sun, seed, col, period=570, **kw):
+        key = ("rays", w, h, sun, seed, col, period, tuple(sorted(kw.items())))
+        if key not in CACHE:
+            a, b = (_sun_rays(w, h, sun, seed + i, col, **kw) for i in range(2))
+            frames = []
+            for i in range(self.STEPS):
+                f = 0.5 + 0.5 * math.sin(i / self.STEPS * TAU)
+                frames.append(rgb_surface(np.clip(a * f + b * (1.0 - f), 0, 255)))
+            CACHE[key] = frames
+        self.frames = CACHE[key]
+        self.period = period
+        self.tmp = rgb_surface(np.zeros((w, h, 3), np.float32))
+
+    def draw(self, add, t, k=1.0, dx=0):
+        img = self.frames[int(t * self.STEPS / self.period) % self.STEPS]
+        if k < 0.98:
+            v = int(255 * k)
+            if v < 4:
+                return
+            self.tmp.blit(img, (0, 0))
+            self.tmp.fill((v, v, v), special_flags=pygame.BLEND_MULT)
+            img = self.tmp
+        add.blit(img, (dx, 0), special_flags=pygame.BLEND_ADD)

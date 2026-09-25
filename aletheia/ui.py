@@ -6,7 +6,7 @@ import pygame
 
 from . import palette as P
 from . import font as F
-from .spritegen import _shade, L, arrays_to_surface, dilate, LIGHT, forge, rect, circle, ellipse
+from .spritegen import _shade, L, arrays_to_surface, dilate, LIGHT, forge, rect, circle, ellipse, opaque_surface
 from .util import clamp
 
 _cache = {}
@@ -195,6 +195,6 @@ def logo_shine(text="ΛLΣTHΣIΛ"):
     img = _cache[("logo_letters", text)]
     a = pygame.surfarray.array_alpha(img).astype(np.float32) / 255.0
     rgb = a[..., None] * np.array([120, 105, 70], np.float32)[None, None, :]
-    s = pygame.Surface(img.get_size())
+    s = opaque_surface(img.get_size())
     pygame.surfarray.blit_array(s, rgb.astype(np.uint8))
     return s

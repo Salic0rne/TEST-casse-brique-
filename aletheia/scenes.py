@@ -11,7 +11,7 @@ from . import font as F
 from . import ui
 from .app import Scene
 from .config import SCREEN_W, SCREEN_H, PF_X, PF_W, PF_H, DIFFICULTIES
-from .spritegen import fbm, arrays_to_surface, rgb_surface, L, forge, rect, circle
+from .spritegen import fbm, arrays_to_surface, rgb_surface, opaque_surface, L, forge, rect, circle
 from .fx import glow, draw_bolt_tree
 from .util import clamp, ease_out_back, TAU
 
@@ -137,7 +137,7 @@ class TitleArt:
         self.t = 0
         self.bolts = []
         self.flash = 0.0
-        self.add = pygame.Surface((SCREEN_W, SCREEN_H)).convert()
+        self.add = opaque_surface((SCREEN_W, SCREEN_H))
         self.twinkle = [(random.randrange(SCREEN_W), random.randrange(SCREEN_H), random.random() * 6)
                         for _ in range(70)]
 

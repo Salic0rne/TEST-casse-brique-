@@ -6,7 +6,7 @@ import pygame
 
 from . import palette as P
 from .sprites import S, NROT, BCOL
-from .spritegen import rot_index
+from .spritegen import rot_index, opaque_surface
 from .fx import glow, Particle, K_GLOW
 from .util import TAU, ease_in_out, catmull
 
@@ -212,7 +212,7 @@ class Enemy:
     # --- rendu ------------------------------------------------------------------------
     def image(self):
         spr = self.sprite()
-        return spr.img if spr else pygame.Surface((4, 4))
+        return spr.img if spr else opaque_surface((4, 4))
 
     def sprite(self):
         s = self.SPRITE

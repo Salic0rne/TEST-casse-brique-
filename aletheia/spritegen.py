@@ -184,7 +184,7 @@ def L(shapes, mat=None, emit=None, flat=None, bevel=2.0, profile="bevel", base=0
 
 
 def raster(w, h, polys, subs, ax, ay, rot=0.0, sx=1.0, sy=1.0, ss=3, xform=None):
-    surf = pygame.Surface((w * ss, h * ss))
+    surf = opaque_surface((w * ss, h * ss))
     surf.fill((0, 0, 0))
     c, s = math.cos(rot), math.sin(rot)
 
@@ -325,9 +325,19 @@ def arrays_to_surface(rgb, alpha):
     return s
 
 
+# Surfaces opaques : 32 bits SANS canal alpha, quelle que soit la plate-forme. Sur macOS la fenêtre est en
+# ARGB, et pygame y donne aux Surface(taille) / .convert() un canal alpha caché ; certains mélanges alpha
+# (sprites avec set_alpha) recopient alors le sprite au lieu de le fondre -> rectangles noirs.
+OPAQUE_MASKS = (0xFF0000, 0x00FF00, 0x0000FF, 0)
+
+
+def opaque_surface(size):
+    return pygame.Surface(size, 0, 32, OPAQUE_MASKS)
+
+
 def rgb_surface(rgb):
     w, h = rgb.shape[:2]
-    s = pygame.Surface((w, h))
+    s = opaque_surface((w, h))
     pygame.surfarray.blit_array(s, np.clip(rgb, 0, 255).astype(np.uint8))
     return s
 

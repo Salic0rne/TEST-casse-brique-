@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pygame
 
-from .spritegen import arrays_to_surface
+from .spritegen import arrays_to_surface, opaque_surface
 
 
 def make_vignette(w, h, strength=150, power=2.2, col=(6, 2, 16)):
@@ -23,9 +23,9 @@ class Post:
     def __init__(self, w, h):
         self.w, self.h = w, h
         self.vignette = make_vignette(w, h)
-        self.tmp = pygame.Surface((w, h))
-        self.red = pygame.Surface((w, h))
-        self.cyan = pygame.Surface((w, h))
+        self.tmp = opaque_surface((w, h))
+        self.red = opaque_surface((w, h))
+        self.cyan = opaque_surface((w, h))
         self.q1 = (max(1, w // 4), max(1, h // 4))
         self.q2 = (max(1, w // 8), max(1, h // 8))
         self.bloom_gain = 1.0
