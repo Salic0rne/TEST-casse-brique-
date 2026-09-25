@@ -24,14 +24,25 @@ class Display:
             dw, dh = pygame.display.get_desktop_sizes()[0]
         except (pygame.error, AttributeError, IndexError):
             dw, dh = 1920, 1080
-        return max(1, min((dw - 60) // SCREEN_W, (dh - 110) // SCREEN_H))
+        return max(1, min(4, (dw - 60) // SCREEN_W, (dh - 110) // SCREEN_H))
 
     def apply(self):
         o = self.save.options
+        self.gpu = False
         if self.headless:
             self.window = pygame.display.set_mode((SCREEN_W, SCREEN_H))
         elif o.get("fullscreen"):
-            self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            try:
+                dw, dh = pygame.display.get_desktop_sizes()[0]
+            except (pygame.error, AttributeError, IndexError):
+                dw, dh = 1920, 1080
+            if min(dw // SCREEN_W, dh // SCREEN_H) >= 6:
+                # très haute définition (4K…) : mise à l'échelle confiée au GPU
+                self.gpu = True
+                self.window = pygame.display.set_mode((SCREEN_W * 2, SCREEN_H * 2),
+                                                      pygame.FULLSCREEN | pygame.SCALED)
+            else:
+                self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             s = o.get("scale") or self.auto_scale()
             self.window = pygame.display.set_mode((SCREEN_W * s, SCREEN_H * s), pygame.RESIZABLE)
@@ -41,6 +52,8 @@ class Display:
     def relayout(self):
         W, H = self.window.get_size()
         k = max(1, min(W // SCREEN_W, H // SCREEN_H))
+        if getattr(self, "gpu", False):
+            k = 2
         self.k = k
         self.dw, self.dh = SCREEN_W * k, SCREEN_H * k
         self.dx, self.dy = (W - self.dw) // 2, (H - self.dh) // 2
@@ -166,6 +179,11 @@ class App:
         elif ev.type == pygame.VIDEORESIZE:
             if not self.save.options.get("fullscreen"):
                 self.display.relayout()
+        elif ev.type == getattr(pygame, "WINDOWFOCUSLOST", -1):
+            # pause automatique si la fenêtre perd le focus
+            sc = self.scene
+            if hasattr(sc, "auto_pause"):
+                sc.auto_pause()
         self.input.event(ev)
 
     def run(self):

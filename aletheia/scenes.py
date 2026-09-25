@@ -523,6 +523,14 @@ class GameScene(Scene):
         self.paused = False
         self.app.audio.set_music_volume(1.0)
 
+    def auto_pause(self):
+        if not self.paused and self.g.state in ("play", "intro") and self.app.input.bot is None:
+            self.paused = True
+            self.pause_menu.sel = 0
+            self.pause_menu.t = 0
+            self.app.audio.stop_loops()
+            self.app.audio.set_music_volume(0.35)
+
     def quit_to_title(self):
         self.app.audio.stop_loops()
         self.app.input.bot = None
