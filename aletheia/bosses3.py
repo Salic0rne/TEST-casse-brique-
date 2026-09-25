@@ -403,6 +403,7 @@ def _charon():
 
 
 class Charon(Boss):
+    EXPLO_GRAD = "TOXIC"
     NAME = "ΧΑΡΩΝ · LE PASSEUR"
     CARD = ("ΧΑΡΩΝ", "LE PASSEUR DU STYX")
     HP = 950
@@ -678,6 +679,7 @@ def _nike():
 
 
 class Nike(Boss):
+    EXPLO_GRAD = "HOLY"
     NAME = "ΝΙΚΗ · LA VICTOIRE"
     CARD = ("ΝΙΚΗ", "LA VICTOIRE AILÉE")
     HP = 1050
@@ -802,6 +804,7 @@ class ZeusHand(Part):
 
 
 class Zeus(Boss):
+    EXPLO_GRAD = "PLASMA"
     NAME = "ΖΕΥΣ-Ω · LE ROI DES DIEUX"
     CARD = ("ΖΕΥΣ-Ω", "LE ROI DES DIEUX")
     HP = 3400

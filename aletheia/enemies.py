@@ -232,6 +232,7 @@ class Stymphalian(Enemy):
 
 class Pithos(Enemy):
     """Jarre de Pandore : dérive, et libère ses maux quand on la brise."""
+    EXPLO_GRAD = "VIOLET"
     HP = 6
     SCORE = 150
     RADIUS = 7
@@ -290,6 +291,7 @@ class Hermes(Enemy):
 
 class Siren(Enemy):
     """Sirène : lyre émettrice, anneaux de balles à trous."""
+    EXPLO_GRAD = "VIOLET"
     HP = 36
     SCORE = 1500
     RADIUS = 10
@@ -449,6 +451,7 @@ class SerpentSeg(Enemy):
 
 class Serpent(Rotor):
     """Serpent d'airain : un mur mouvant d'anneaux invulnérables, seule la tête est vulnérable."""
+    EXPLO_GRAD = "TOXIC"
     HP = 40
     SCORE = 2500
     RADIUS = 7
@@ -498,6 +501,7 @@ class Serpent(Rotor):
 
 class Shade(Enemy):
     """Ombre du Tartare : ne se matérialise que par intermittence."""
+    EXPLO_GRAD = "TOXIC"
     HP = 10
     SCORE = 400
     RADIUS = 8
@@ -546,6 +550,7 @@ class Shade(Enemy):
 
 class Erinys(Rotor):
     """Érinye : fonce sur sa proie après un bref avertissement."""
+    EXPLO_GRAD = "VIOLET"
     HP = 8
     SCORE = 350
     RADIUS = 8
@@ -585,6 +590,7 @@ class Erinys(Rotor):
 
 class Eagle(Rotor):
     """Aigle de Zeus : décoche des aiguilles-éclairs."""
+    EXPLO_GRAD = "PLASMA"
     HP = 22
     SCORE = 900
     RADIUS = 10
@@ -775,6 +781,7 @@ class Centaur(Enemy):
 
 class GorgonEye(Enemy):
     """Œil de la Gorgone : rayon pétrifiant télégraphié."""
+    EXPLO_GRAD = "TOXIC"
     HP = 24
     SCORE = 1200
     RADIUS = 9
@@ -811,6 +818,7 @@ class GorgonEye(Enemy):
 
 class Pylon(Enemy):
     """Pylône de l'Olympe : relié à un jumeau par un arc électrique."""
+    EXPLO_GRAD = "PLASMA"
     HP = 30
     SCORE = 1000
     RADIUS = 8

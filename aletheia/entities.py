@@ -4,6 +4,7 @@ import random
 
 import pygame
 
+from . import palette as P
 from .sprites import S, NROT, BCOL
 from .spritegen import rot_index
 from .fx import glow, Particle, K_GLOW
@@ -72,6 +73,7 @@ class Enemy:
     SHADOW = True
     BOSSPART = False
     OWNER_DRAWS = False  # partie de boss dessinée par-dessus le corps
+    EXPLO_GRAD = None    # palette d'explosion (None = feu)
     KILL_SFX = "explo_s"
 
     def __init__(self, w, x, y, **kw):
@@ -180,6 +182,10 @@ class Enemy:
     def armored(self):
         return self.ARMOR
 
+    def grad(self):
+        g = self.EXPLO_GRAD
+        return getattr(P, g) if isinstance(g, str) else g
+
     def die(self, quiet=False):
         if self.dead:
             return
@@ -189,7 +195,7 @@ class Enemy:
         if not quiet:
             debris = w.fx.debris_from(self.image(), 4 if self.EXPLO < 1 else 7) if self.EXPLO >= 0.9 else None
             w.fx.explosion(self.x, self.y, self.EXPLO, debris=debris, vx=self.vx * 0.5,
-                           vy=self.vy * 0.5 + (w.scroll if self.GROUND else 0))
+                           vy=self.vy * 0.5 + (w.scroll if self.GROUND else 0), grad=self.grad())
             w.audio.play(self.KILL_SFX, self.x)
             w.juice.shake(0.06 + 0.1 * self.EXPLO)
             if self.GROUND:

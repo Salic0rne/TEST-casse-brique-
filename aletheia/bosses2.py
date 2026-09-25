@@ -455,6 +455,7 @@ class Graia(Part):
 
 
 class Graiai(Boss):
+    EXPLO_GRAD = "TOXIC"
     NAME = "ΓΡΑΙΑΙ · LES GRÉES"
     CARD = ("ΓΡΑΙΑΙ", "TROIS SŒURS, UN SEUL ŒIL")
     HP = 1
@@ -637,6 +638,7 @@ class MedusaSnake(Part):
 
 
 class Medusa(Boss):
+    EXPLO_GRAD = "TOXIC"
     NAME = "ΜΕΔΟΥΣΑ · MÉDUSE"
     CARD = ("ΜΕΔΟΥΣΑ", "LA GORGONE AU REGARD DE PIERRE")
     HP = 2400

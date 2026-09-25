@@ -183,7 +183,8 @@ class Boss(Enemy):
         if t % 5 == 0:
             ox = random.uniform(-span[0], span[0])
             oy = random.uniform(-span[1], span[1])
-            w.fx.explosion(self.x + ox, self.y + oy, random.uniform(0.7, 1.3))
+            w.fx.explosion(self.x + ox, self.y + oy, random.uniform(0.7, 1.3),
+                           grad=self.grad() if t % 10 == 0 else None)
             w.audio.play("explo_m" if t % 15 == 0 else "explo_s", self.x + ox)
             w.juice.shake(0.2)
             self.flash = 2
@@ -194,7 +195,7 @@ class Boss(Enemy):
             self.dead = True
             w.fx.explosion(self.x, self.y, 3.2 if not self.MID else 2.2,
                            debris=w.fx.debris_from(self.image(), 12), ring_col=(255, 240, 200))
-            w.fx.explosion(self.x, self.y, 2.0, delay=10)
+            w.fx.explosion(self.x, self.y, 2.0, delay=10, grad=self.grad())
             w.fx.ring(self.x, self.y, 10, 300, 60, (255, 255, 255), 6)
             w.audio.play("explo_boss")
             w.juice.shake(1.0)
