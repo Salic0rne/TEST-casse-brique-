@@ -3,6 +3,8 @@
 *Shoot'em up vertical en Python, inspiré du gameplay de **Super Aleste** (Compile, SNES 1992),
 revisité façon mythologie grecque + science-fiction.*
 
+![Aperçu d'ALETHEIA : écran-titre, Thalassa, Minotauros, Kerberos, Talos et Zeus-Ω](docs/apercu.png)
+
 > An 2525. Les dieux de l'Olympe étaient des intelligences artificielles — le **Dodékathéon** —
 > chargées de guider l'humanité depuis **Olympos**, une citadelle en orbite de Jupiter.
 > Zeus-Ω a réduit les autres dieux au silence et lâché ses automates de bronze sur les colonies.

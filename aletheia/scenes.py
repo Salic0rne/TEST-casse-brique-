@@ -194,7 +194,7 @@ class LoadingScene(Scene):
     def __init__(self, app):
         super().__init__(app)
         self.steps = [("LA FORGE S'ÉCHAUFFE", self.s_sprites), ("GRAVURE DES FRISES", self.s_hud),
-                      ("ACCORD DE LA LYRE", self.s_sfx), ("L'HYMNE D'ALETHEIA", self.s_music)]
+                      ("ACCORD DE LA LYRE", self.s_sfx)]
         self.i = 0
         self.progress = 0.0
         self.label = ""
@@ -230,8 +230,6 @@ class LoadingScene(Scene):
     def s_sfx(self, cb):
         self.app.audio.build_sfx(cb)
 
-    def s_music(self, cb):
-        self.app.audio.render_now("title", cb)
 
     def update(self):
         if self.i < len(self.steps):

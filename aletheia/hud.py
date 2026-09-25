@@ -200,4 +200,4 @@ class HUD:
         for i, (k_, v_) in enumerate(((lab["fire"] + "/J", "TIR"), (lab["mode"] + "/K", "MODE"),
                                       (lab["bomb"] + "/L", "BOMBE"), (lab["speed"] + "/⇧", "VITESSE"))):
             font.draw(screen, k_.replace("⇧", "MAJ"), x1, yc + i * 10, (110, 100, 150))
-            font.draw(screen, v_, x1 + 30, yc + i * 10, (150, 140, 190))
+            font.draw(screen, v_, x1 + 36, yc + i * 10, (150, 140, 190))
