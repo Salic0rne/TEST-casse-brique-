@@ -516,6 +516,20 @@ def stage5_waves(w, d):
     yield from d.midboss(Charon)
     w.drop_items(PF_W / 2, 60, "orb", 1)
     yield 60
+    # --- chute vers l'Érèbe : section à grande vitesse (façon Super Aleste) ---
+    w.banner("CHUTE VERS L'ÉRÈBE", (190, 150, 255), 130)
+    w.audio.play("teleport", PF_W / 2, 0.8)
+    bg.set_speed(2.8, 0.04)
+    yield 60
+    for k in range(9):
+        side = -1 if k % 2 else 1
+        for i in range(4):
+            d.spawn(E.Myrmex, PF_W / 2 + side * (20 + i * 22), -12, vy=3.4 + i * 0.2, fire=18 if i == 1 else None)
+        if k % 3 == 2:
+            d.spawn(E.Pithos, random.uniform(30, PF_W - 30), -14, vy=2.6, burst=8)
+        yield 44
+    bg.set_speed(0.7, 0.03)
+    yield 60
     d.spawn(E.Hermes, -12, 60, side=1, y0=60, drop="oneup")
     for x in (64, 192):
         d.spawn(E.Siren, x, -16, tx=x, ty=60, rings=4)

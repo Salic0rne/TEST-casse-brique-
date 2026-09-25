@@ -296,7 +296,7 @@ class Renderer:
             self.cache[key] = y
         return y
 
-    def render(self, progress=None):
+    def render(self, progress=None, normalize=True):
         song = self.song
         bpm = song["bpm"]
         step = 60.0 / bpm / 4
@@ -461,6 +461,8 @@ class Renderer:
             fl = min(len(L), ns(0.3))
             L[-fl:] *= np.linspace(1, 0, fl)
             Rr[-fl:] *= np.linspace(1, 0, fl)
+        if not normalize:
+            return L, Rr
         m = max(float(np.max(np.abs(L))), float(np.max(np.abs(Rr))), 1e-9)
         drive = song.get("drive", 1.1)
         L = softclip(L / m * drive, drive) * 0.9

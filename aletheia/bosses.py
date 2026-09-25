@@ -84,6 +84,11 @@ class Part(Enemy):
         return self.spr
 
     def on_death(self):
+        w = self.w
+        w.juice.hitstop = max(w.juice.hitstop, 4)
+        w.juice.shake(0.35)
+        w.juice.flash((255, 240, 220), 0.3, 0.08)
+        w.fx.ring(self.x, self.y, 4, 60, 24, (255, 230, 180), 3)
         if self.owner is not None and hasattr(self.owner, "part_died"):
             self.owner.part_died(self)
 

@@ -5,7 +5,7 @@ import random
 import pygame
 
 from .config import PF_X, PF_W, PF_H, DIFFICULTIES
-from .fx import FX, Juice
+from .fx import FX, Juice, Particle, K_STREAK
 from .entities import Bullets
 from .player import Player
 from .items import Item
@@ -351,7 +351,13 @@ class Game:
             return
         self.bg.update()
         if st in ("intro",):
-            # le vaisseau entre par le bas
+            # le vaisseau entre par le bas, sortant de l'hyperespace
+            if self.state_t < 70 and self.state_t % 2 == 0:
+                for _ in range(3):
+                    x = random.uniform(0, PF_W)
+                    sp = random.uniform(9, 16) * (1 - self.state_t / 80)
+                    self.fx.add(Particle(K_STREAK, x, random.uniform(-40, PF_H), 0, sp, 14,
+                                         2.5, 1, (150, 200, 255) if random.random() < 0.7 else (255, 230, 170)))
             k = min(1.0, self.state_t / 90)
             p.y = lerp(PF_H + 30, PF_H - 50, ease_out_cubic(k))
             p.x = PF_W / 2
@@ -384,6 +390,12 @@ class Game:
                 self.audio.play("clear")
             self.update_tally(inp)
         self.player_dead_pause = p.dead
+        if self.bg.scroll > 1.5 and self.t % 2 == 0:
+            # lignes de vitesse pendant les sections rapides
+            k = min(1.0, (self.bg.scroll - 1.5) / 1.2)
+            for _ in range(2):
+                self.fx.add(Particle(K_STREAK, random.uniform(0, PF_W), random.uniform(-30, PF_H - 40), 0,
+                                     self.bg.scroll * 4.5, 10, 2.2, 1, (int(120 * k), int(100 * k), int(170 * k))))
         self.targets = [e for e in self.enemies if not e.dead and e.targetable()]
         for s in self.shots:
             s.update()
