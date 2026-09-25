@@ -19,14 +19,24 @@ tambours sur cadre, enclumes…) dans des modes grecs et méditerranéens.
 
 ## Lancer le jeu
 
-```bash
-pip install -r requirements.txt      # pygame + numpy
-python main.py
-```
+1. Installe **Python 3** depuis [python.org](https://www.python.org/downloads/)
+   (sous Windows, coche « Add python.exe to PATH » dans l'installeur).
+2. Télécharge le jeu : bouton vert **Code → Download ZIP** sur GitHub, puis décompresse l'archive.
+3. Ouvre un terminal **dans le dossier qui contient `main.py`** et tape :
 
-Python 3.8 ou plus récent. À chaque lancement, la forge sculpte les sprites et synthétise les
-bruitages (≈ 2 s) ; les musiques sont ensuite composées en tâche de fond — l'hymne du titre
-arrive quelques secondes après l'écran-titre, les autres pendant que tu joues.
+| | Windows | macOS / Linux |
+|---|---|---|
+| Installer pygame + numpy (une seule fois) | `py -m pip install -r requirements.txt` | `python3 -m pip install -r requirements.txt` |
+| Lancer le jeu | `py main.py` | `python3 main.py` |
+
+Python 3.8 ou plus récent. Avec Python 3.14 et au-delà, c'est **pygame-ce** (l'édition
+communautaire de pygame) qui est installé : le jeu fonctionne pareil. Sous Linux, si pip refuse
+avec « externally-managed-environment », passe par un environnement virtuel :
+`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python main.py`.
+
+À chaque lancement, la forge sculpte les sprites et synthétise les bruitages (≈ 2 s) ; les
+musiques sont ensuite composées en tâche de fond — l'hymne du titre arrive quelques secondes
+après l'écran-titre, les autres pendant que tu joues.
 
 ## Commandes
 

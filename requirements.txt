@@ -1,2 +1,5 @@
-pygame>=2.1
 numpy>=1.22
+# pygame has no prebuilt wheels for Python 3.14+: install pygame-ce there
+# (community edition, same "pygame" module, same game).
+pygame>=2.1; python_version < "3.14"
+pygame-ce>=2.5; python_version >= "3.14"
