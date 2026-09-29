@@ -257,8 +257,8 @@ export class Music {
   }
   _pluck(t, midi, dur, vol) {
     const a = this.a;
-    a.tone({ at: t, type: 'triangle', f: NOTE(midi + 12), dur: dur * 1.2, vol, a: 0.002, lp: 4500, lp1: 900, dest: this.sideBus, music: true, rev: 0.35 });
-    a.tone({ at: t, type: 'square', f: NOTE(midi + 12), dur: dur, vol: vol * 0.35, a: 0.002, lp: 2500, lp1: 700, dest: this.sideBus, music: true });
+    a.tone({ at: t, type: 'triangle', f: NOTE(midi), dur: dur * 1.2, vol, a: 0.002, lp: 4500, lp1: 900, dest: this.sideBus, music: true, rev: 0.35 });
+    a.tone({ at: t, type: 'square', f: NOTE(midi), dur: dur, vol: vol * 0.35, a: 0.002, lp: 2500, lp1: 700, dest: this.sideBus, music: true });
   }
   _lead(t, midi, dur, vol, type) {
     const a = this.a, f = NOTE(midi);

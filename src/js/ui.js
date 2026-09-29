@@ -96,7 +96,7 @@ export class TitleScene {
     const pop = easeOutBack(Math.min(1, this.t * 1.6));
     titleLogo(ctx, time, VIEW_W / 2 - 20, 210, 0.86 * pop);
     const labels = ['1 JOUEUR', '2 JOUEURS', 'OPTIONS', 'QUITTER'];
-    const subs = ['Contre l\'ordinateur', 'Duel en local', 'Sons, écran, contrôles', null];
+    const subs = ['Contre l\'ordinateur', 'Duel en local', 'Sons, écran, commandes, règles', null];
     labels.forEach((l, i) => {
       const k = easeOutCubic(clamp(this.t * 2 - i * 0.15, 0, 1));
       button(ctx, l, VIEW_W / 2 - (1 - k) * 700, 480 + i * 92, 430, 74, this.menu.sel === i, time, this.menu.rects, i, subs[i]);
@@ -214,33 +214,38 @@ export class SetupScene {
 
 // ---------------------------------------------------------------- Options
 export class OptionsScene {
-  enter(app, args) { this.app = app; this.from = args.from || 'title'; this.menu = new Menu(5); this.t = 0; this.overlay = !!args.overlay; }
+  enter(app, args) { this.app = app; this.from = args.from || 'title'; this.menu = new Menu(7); this.t = 0; this.overlay = !!args.overlay; this.child = null; }
   update(dt) {
     const app = this.app, s = app.settings; this.t += dt;
+    if (this.child) { this.child.update(dt); if (this.child.done) this.child = null; return; }
     const r = this.menu.update(app);
     const sel = this.menu.sel, d = r.dx;
     if (d) {
       if (sel === 0) { s.music = clamp(Math.round((s.music + d * 0.1) * 10) / 10, 0, 1); app.applyAudio(); app.audio.sfx('ui-tick'); }
       if (sel === 1) { s.sfx = clamp(Math.round((s.sfx + d * 0.1) * 10) / 10, 0, 1); app.applyAudio(); app.audio.sfx('bumper'); }
       if (sel === 2) { s.shake = !s.shake; app.applyAudio(); app.audio.sfx('ui-tick'); }
-      if (sel === 3) { app.toggleFullscreen(); }
+      if (sel === 3) { s.replay = !s.replay; app.audio.sfx('ui-tick'); }
+      if (sel === 4) { app.toggleFullscreen(); }
     }
     if (r.ok) {
       if (sel === 2) { s.shake = !s.shake; app.applyAudio(); app.audio.sfx('ui-tick'); }
-      else if (sel === 3) app.toggleFullscreen();
-      else if (sel === 4) this.exit();
+      else if (sel === 3) { s.replay = !s.replay; app.audio.sfx('ui-tick'); }
+      else if (sel === 4) app.toggleFullscreen();
+      else if (sel === 5) { this.child = new ControlsScene(); this.child.enter(app, { overlay: this.overlay }); app.audio.sfx('ui-ok'); }
+      else if (sel === 6) this.exit();
     }
     if (app.input.nav.back) this.exit();
   }
   exit() { this.app.saveSettings(); this.app.audio.sfx('ui-back'); if (this.overlay) this.app.closeOverlay(); else this.app.go(this.from); }
   render(r, time) {
     const ctx = r.ctx, app = this.app, s = app.settings;
+    if (this.child) { this.child.render(r, time); return; }
     if (!this.overlay) menuBackdrop(app, r, 0.78);
-    ctx.save(); ctx.translate(VIEW_W / 2, 100); comicText(ctx, 'OPTIONS', 0, 0, 100, PAL.mustardLight, OUT); ctx.restore();
-    const rows = [['MUSIQUE', s.music], ['EFFETS SONORES', s.sfx], ['SECOUSSES D\'ÉCRAN', s.shake ? 'OUI' : 'NON'], ['PLEIN ÉCRAN', document.fullscreenElement ? 'OUI' : 'NON'], ['RETOUR', null]];
+    ctx.save(); ctx.translate(VIEW_W / 2, 90); comicText(ctx, 'OPTIONS', 0, 0, 100, PAL.mustardLight, OUT); ctx.restore();
+    const rows = [['MUSIQUE', s.music], ['EFFETS SONORES', s.sfx], ['SECOUSSES D\'ÉCRAN', s.shake ? 'OUI' : 'NON'], ['REPLAYS DES BUTS', s.replay ? 'OUI' : 'NON'], ['PLEIN ÉCRAN', document.fullscreenElement ? 'OUI' : 'NON'], ['COMMANDES & RÈGLES', '›'], ['RETOUR', null]];
     rows.forEach(([lab, v], i) => {
-      const isSel = this.menu.sel === i, y = 250 + i * 90;
-      if (v === null) { button(ctx, lab, VIEW_W / 2, y + 20, 380, 68, isSel, time, this.menu.rects, i); return; }
+      const isSel = this.menu.sel === i, y = 178 + i * 84;
+      if (v === null) { button(ctx, lab, VIEW_W / 2, y + 20, 380, 66, isSel, time, this.menu.rects, i); return; }
       const w = 760, h = 64, x = VIEW_W / 2 - w / 2;
       ctx.save(); ctx.translate(VIEW_W / 2, y + h / 2); if (isSel) ctx.scale(1.03, 1.03);
       skewPanel(ctx, -w / 2 + 5, -h / 2 + 6, w, h, 18, OUT, 0.1);
@@ -259,6 +264,74 @@ export class OptionsScene {
   }
 }
 
+// ---------------------------------------------------------------- Commandes & règles
+export class ControlsScene {
+  enter(app, args) { this.app = app; this.overlay = !!args.overlay; this.done = false; this.t = 0; this.page = 0; }
+  update(dt) {
+    const nav = this.app.input.nav; this.t += dt;
+    if (nav.left || nav.right) { this.page = 1 - this.page; this.app.audio.sfx('ui-tick'); }
+    if (nav.back || nav.ok || this.app.input.mouse.clicked) { this.done = true; this.app.audio.sfx('ui-back'); }
+  }
+  key(ctx, label, x, y) {
+    ctx.save(); ctx.font = '24px Bangers'; const w = Math.max(40, ctx.measureText(label).width + 22);
+    rrPath(ctx, x, y - 20, w, 40, 8); ctx.fillStyle = PAL.cream; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = OUT; ctx.stroke();
+    rrPath(ctx, x + 3, y + 8, w - 6, 9, 4); ctx.fillStyle = '#c8bfa9'; ctx.fill();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2028'; ctx.fillText(label, x + w / 2, y - 1); ctx.restore();
+    return w;
+  }
+  render(r, time) {
+    const ctx = r.ctx, app = this.app;
+    if (!this.overlay) menuBackdrop(app, r, 0.82);
+    ctx.save(); ctx.translate(VIEW_W / 2, 70); comicText(ctx, this.page === 0 ? 'COMMANDES' : 'RÈGLES DU JEU', 0, 0, 84, PAL.mustardLight, OUT); ctx.restore();
+    skewPanel(ctx, 110, 130, VIEW_W - 220, 690, 24, 'rgba(24,16,22,0.88)', 6);
+    ctx.textBaseline = 'middle';
+    if (this.page === 0) {
+      const cols = [['SOLO (clavier)', 480], ['DUEL : JOUEUR 1', 770], ['DUEL : JOUEUR 2', 1050], ['MANETTE', 1300]];
+      const rows = [
+        ['Déplacer', [['ZQSD/WASD'], ['ZQSD'], ['← ↑ → ↓'], ['Stick / Croix']]],
+        ['Tir / Tacle', [['Espace', 'F', 'J'], ['F'], ['K'], ['A / X']]],
+        ['Lob / Saut', [['G', 'K'], ['G'], ['L'], ['B']]],
+        ['Turbo', [['Maj', 'H'], ['H'], ['; (M)'], ['RB / RT']]],
+        ['Changer joueur', [['A(Q)', 'E'], ['A(Q)'], ['O'], ['Y / LB']]],
+        ['Pause', [['Échap', 'P'], ['Échap', 'P'], ['Échap', 'P'], ['Start']]],
+      ];
+      ctx.textAlign = 'left'; ctx.font = '30px Bangers'; ctx.fillStyle = PAL.mustardLight;
+      cols.forEach(([n, x]) => { ctx.textAlign = 'center'; ctx.fillStyle = PAL.mustardLight; ctx.strokeStyle = OUT; ctx.lineWidth = 5; ctx.strokeText(n, x, 190); ctx.fillText(n, x, 190); });
+      rows.forEach(([lab, vals], i) => {
+        const y = 262 + i * 88;
+        ctx.textAlign = 'left'; ctx.font = '25px "Lilita One"'; ctx.fillStyle = PAL.cream; ctx.fillText(lab, 150, y);
+        vals.forEach((keys, ci) => {
+          let total = 0; const ws = keys.map((k) => { ctx.save(); ctx.font = '24px Bangers'; const w = Math.max(40, ctx.measureText(k).width + 22); ctx.restore(); return w; });
+          total = ws.reduce((a, b) => a + b + 8, -8);
+          let x = cols[ci][1] - total / 2;
+          keys.forEach((k, ki) => { this.key(ctx, k, x, y); x += ws[ki] + 8; });
+        });
+      });
+      ctx.textAlign = 'center'; ctx.font = '22px "Lilita One"'; ctx.fillStyle = 'rgba(246,239,223,0.85)';
+      ctx.fillText('Maintenir « Tir » avec la balle = tir puissant (jauge au-dessus du joueur). Une simple pression = passe assistée.', VIEW_W / 2, 800);
+    } else {
+      const items = [
+        ['BALLE D\'ACIER', 'Touche-la pour l\'attraper. Un tir très rapide peut rebondir sur toi : attention !'],
+        ['TACLE', 'Sans balle, « Tir » = tacle glissé. L\'adversaire lâche la balle et reste au sol.'],
+        ['LOB / SAUT', 'Un lob passe au-dessus des joueurs. Saute pour attraper les balles hautes.'],
+        ['BUT', '10 points. Le gardien peut arrêter, ou repousser la balle.'],
+        ['BUMPERS  +1', 'Les dômes renvoient la balle plus vite. Chaque rebond te rapporte 1 point.'],
+        ['PADS ÉTOILÉS  +2', 'Frappe les murs : allume 6 pads sur 8 pour un STAR RUSH : prochain but x2 !'],
+        ['PORTAILS', 'Une balle qui roule dessus est téléportée de l\'autre côté du terrain.'],
+        ['JETONS', '$ pièces · TURBO vitesse · POWER tirs et tacles renforcés · GEL fige l\'adversaire.'],
+      ];
+      items.forEach(([t, d], i) => {
+        const y = 196 + i * 78;
+        ctx.textAlign = 'left'; ctx.font = '34px Bangers'; ctx.fillStyle = i % 2 ? PAL.salmonLight : PAL.mustardLight; ctx.strokeStyle = OUT; ctx.lineWidth = 5;
+        ctx.strokeText(t, 160, y); ctx.fillText(t, 160, y);
+        ctx.font = '24px "Lilita One"'; ctx.fillStyle = PAL.cream; ctx.fillText(d, 520, y);
+      });
+    }
+    ctx.textAlign = 'center'; ctx.font = '19px "Lilita One"'; ctx.fillStyle = 'rgba(246,239,223,0.8)'; ctx.strokeStyle = OUT; ctx.lineWidth = 4;
+    const foot = '←→ changer de page · ENTRÉE / ÉCHAP retour'; ctx.strokeText(foot, VIEW_W / 2, VIEW_H - 24); ctx.fillText(foot, VIEW_W / 2, VIEW_H - 24);
+  }
+}
+
 // ---------------------------------------------------------------- Match
 export class MatchScene {
   enter(app, cfg) {
@@ -269,7 +342,7 @@ export class MatchScene {
     this.buildArena(cfg.teamA, cfg.teamB);
     this.m = new Match({
       teamA: cfg.teamA, teamB: cfg.teamB, mode2p: cfg.mode2p, difficulty: cfg.difficulty, duration: cfg.duration,
-      audio: app.audio, music: app.music, fx: app.fx, input: app.input, onEnd: (res) => this.finish(res),
+      audio: app.audio, music: app.music, fx: app.fx, input: app.input, onEnd: (res) => this.finish(res), replay: app.settings.replay,
     });
     this.m.onSwap = () => { const l = this.m.teams.find((t) => t.attackDir > 0).def, r = this.m.teams.find((t) => t.attackDir < 0).def; this.buildArena(l, r); };
     app.music.stop(0.4);
@@ -285,25 +358,46 @@ export class MatchScene {
       const r = this.menu.update(app);
       if (r.ok) this.pickPause(this.menu.sel);
       if (nav.pause || nav.back) { this.resume(); }
+      app.audio.setCrowd(0.08); app.audio.updateCrowd(dt); app.audio.setRoll(0);
       return;
     }
-    if (nav.pause && !['fulltime'].includes(this.m.phase)) { this.paused = true; this.menu.sel = 0; app.audio.sfx('ui-back'); app.audio.duckMusic(0.35, 0.01); app.music.setIntensity(0.1); return; }
-    if (document.hidden) { this.paused = true; return; }
+    if (nav.pause && !['fulltime'].includes(this.m.phase)) { this.paused = true; this.menu.sel = 0; app.audio.sfx('ui-back'); app.audio.duckMusic(0.3); return; }
+    if (document.hidden) { this.paused = true; app.audio.duckMusic(0.3); return; }
+    if (this.m.replay && (nav.ok || nav.back || app.input.mouse.clicked || app.input.slots.some((s) => s.aPressed))) this.m.skipReplay();
     this.m.update(dt);
   }
-  resume() { this.paused = false; this.app.audio.sfx('ui-ok'); this.app.music.setIntensity(0.5); this.app.audio.duckMusic(1, 0.01); }
+  resume() { this.paused = false; this.app.audio.sfx('ui-ok'); this.app.audio.duckMusic(1); }
   pickPause(i) {
     const app = this.app; app.audio.sfx('ui-ok');
     if (i === 0) this.resume();
-    else if (i === 1) { this.sub = new OptionsScene(); this.sub.enter(app, { overlay: true, from: 'pause' }); app.overlay = this; }
-    else if (i === 2) { app.audio.duckMusic(1, 0.01); app.go('match', this.cfg); }
-    else if (i === 3) { app.audio.duckMusic(1, 0.01); app.go('title'); }
+    else if (i === 1) { this.sub = new OptionsScene(); this.sub.enter(app, { overlay: true, from: 'pause' }); }
+    else if (i === 2) { app.audio.duckMusic(1); app.go('match', this.cfg); }
+    else if (i === 3) { app.audio.duckMusic(1); app.go('title'); }
   }
   closeOverlay() { this.sub = null; }
+  // Habillage "télé" du replay : bandes cinéma, lignes de balayage, sépia léger, pastille REC
+  drawReplayOverlay(ctx, m, time) {
+    const R = m.replay, k = Math.min(1, R.elapsed * 4), bar = 92 * easeOutCubic(k);
+    ctx.fillStyle = 'rgba(255,214,150,0.07)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.fillStyle = 'rgba(0,0,0,0.10)'; for (let y = 0; y < VIEW_H; y += 4) ctx.fillRect(0, y, VIEW_W, 1.5);
+    ctx.fillStyle = '#0c070b'; ctx.fillRect(0, 0, VIEW_W, bar); ctx.fillRect(0, VIEW_H - bar, VIEW_W, bar);
+    ctx.fillStyle = PAL.mustard; ctx.fillRect(0, bar, VIEW_W, 5); ctx.fillRect(0, VIEW_H - bar - 5, VIEW_W, 5);
+    ctx.save(); ctx.translate(140, bar * 0.5 + 2);
+    ctx.beginPath(); ctx.arc(-46, 0, 13, 0, TAU); ctx.fillStyle = Math.sin(time * 8) > 0 ? '#ff4a3a' : '#7a1d16'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = OUT; ctx.stroke();
+    comicText(ctx, 'REPLAY', 40, 0, 54, PAL.cream, OUT); ctx.restore();
+    const t = m.teams[m.scoredTeam]; if (t) { ctx.save(); ctx.translate(VIEW_W - 260, bar * 0.5 + 2); comicText(ctx, t.def.name, 0, 0, 40, t.def.light, OUT); ctx.restore(); }
+    ctx.font = '20px "Lilita One"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(246,239,223,0.85)'; ctx.strokeStyle = OUT; ctx.lineWidth = 4;
+    const s = 'ENTRÉE : passer'; ctx.strokeText(s, VIEW_W / 2, VIEW_H - bar * 0.5); ctx.fillText(s, VIEW_W / 2, VIEW_H - bar * 0.5);
+  }
   render(r, time) {
     const ctx = r.ctx, m = this.m, app = this.app;
-    r.drawWorld(m, app.arena, app.fx, time);
-    r.drawHUD(m, time, 1 / 60);
+    if (m.replay) {
+      r.drawWorld(m.replayView(), app.arena, app.fx, time);
+      this.drawReplayOverlay(ctx, m, time);
+    } else {
+      r.drawWorld(m, app.arena, app.fx, time);
+      r.drawHUD(m, time, 1 / 60);
+    }
     if (this.paused && !this.sub) {
       ctx.fillStyle = 'rgba(12,6,12,0.68)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       ctx.save(); ctx.translate(VIEW_W / 2, 210); comicText(ctx, 'PAUSE', 0, 0, 130, PAL.mustardLight, OUT); ctx.restore();

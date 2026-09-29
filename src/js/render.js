@@ -225,14 +225,14 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     const hot = b.heat > 0.55 ? (b.heat - 0.55) * 1.5 : 0;
-    drawBall(ctx, b.x, b.y - b.z, b.r, b.rot, m.teamColorOf(b.lastTeam), hot);
+    drawBall(ctx, b.x, b.y - b.z, b.r * 1.2, b.rot, m.teamColorOf(b.lastTeam), hot);
   }
 
   drawMarkers(ctx, m, time) {
     for (const t of m.teams) {
       if (t.human < 0 || !t.ctrl) continue;
       const p = t.ctrl;
-      if (m.phase === 'goal' || m.phase === 'halftime' || m.phase === 'fulltime' || m.phase === 'endhalf') continue;
+      if (m.phase === 'goal' || m.phase === 'halftime' || m.phase === 'fulltime' || m.phase === 'endhalf' || m.phase === 'replay') continue;
       const col = t.def.light;
       // anneau au sol
       ctx.save(); ctx.translate(p.x, p.y + 3); ctx.scale(1, 0.45);

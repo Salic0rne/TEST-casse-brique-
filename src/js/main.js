@@ -34,7 +34,7 @@ class App {
   }
 
   loadSettings() {
-    const d = { music: 0.6, sfx: 0.85, shake: true, teamA: 0, teamB: 1, diff: 1, dur: 1 };
+    const d = { music: 0.6, sfx: 0.85, shake: true, replay: true, teamA: 0, teamB: 1, diff: 1, dur: 1 };
     try { return Object.assign(d, JSON.parse(localStorage.getItem('sba-settings') || '{}')); } catch (e) { return d; }
   }
   saveSettings() { try { localStorage.setItem('sba-settings', JSON.stringify(this.settings)); } catch (e) { /* ignore */ } }
@@ -92,6 +92,7 @@ class App {
       if (tr.phase === 'out' && tr.t >= dur) { this.enter(...tr.next); tr.phase = 'in'; tr.t = 0; }
       else if (tr.phase === 'in' && tr.t >= dur) this.trans = null;
     }
+    if (!(this.scene instanceof MatchScene)) { this.audio.setCrowd(0.13); this.audio.updateCrowd(dt); this.audio.setRoll(0); }
     if (this.attract && !(this.scene instanceof MatchScene)) this.attract.update(dt);
     if (this.scene && !(tr && tr.phase === 'out' && tr.t > 0.3)) this.scene.update(dt);
     // rendu

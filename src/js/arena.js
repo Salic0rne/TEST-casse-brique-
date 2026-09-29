@@ -305,6 +305,13 @@ export class Arena {
       else if (c.hat === 'afro') { ctx.beginPath(); ctx.arc(0, y - 28, 12, 0, TAU); ctx.fillStyle = '#231512'; ctx.fill(); ctx.stroke(); }
       else if (c.hat === 'flag') { ctx.strokeStyle = OUT; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(12, y - 10); ctx.lineTo(12, y - 52); ctx.stroke(); ctx.fillStyle = c.acc; ctx.beginPath(); const fw = Math.sin(t * 7 + c.ph) * 4; ctx.moveTo(12, y - 52); ctx.lineTo(34, y - 46 + fw); ctx.lineTo(12, y - 38); ctx.closePath(); ctx.fill(); ctx.stroke(); }
       ctx.restore();
+      // flashs d'appareils photo dans les tribunes pendant les grands moments
+      if (cheer > 0.9 && ((Math.floor(t * 7) + i * 13) % 29 === 0)) {
+        const fl = 1 - ((t * 7) % 1);
+        ctx.save(); ctx.translate(c.x, y - 34); ctx.globalAlpha = fl; ctx.fillStyle = '#fff';
+        ctx.beginPath(); for (let k = 0; k < 8; k++) { const rr = k % 2 ? 4 : 15, a = k * Math.PI / 4; k ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      }
     }
   }
 

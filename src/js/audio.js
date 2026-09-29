@@ -48,6 +48,7 @@ export class AudioEngine {
       d[i] = (w * 0.5 + (b0 + b1 + b2 + w * 0.1848) * 0.11);
     }
     this._initCrowd();
+    this._initRoll();
     this.ready = true;
   }
 
@@ -388,9 +389,27 @@ export class AudioEngine {
     };
   }
 
-  duckMusic(to, seconds) {
+  // Atténue la musique. hold > 0 : revient automatiquement à 1 après `hold` secondes ; sinon reste tel quel.
+  duckMusic(to, hold = 0) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime, g = this.musicDuck.gain;
-    g.cancelScheduledValues(t); g.setTargetAtTime(to, t, 0.03); g.setTargetAtTime(1, t + seconds, 0.4);
+    g.cancelScheduledValues(t); g.setTargetAtTime(to, t, 0.04);
+    if (hold > 0) g.setTargetAtTime(1, t + hold, 0.5);
+  }
+
+  // Roulement de la balle sur le sol (bruit filtré, niveau selon la vitesse)
+  _initRoll() {
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true; src.playbackRate.value = 0.6;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 260; bp.Q.value = 1.4;
+    const g = ctx.createGain(); g.gain.value = 0;
+    src.connect(bp); bp.connect(g); g.connect(this.sfxBus); src.start();
+    this.roll = { g, bp };
+  }
+  setRoll(k) {
+    if (!this.ctx || !this.roll) return;
+    const t = this.ctx.currentTime;
+    this.roll.g.gain.setTargetAtTime(k * 0.16, t, 0.05);
+    this.roll.bp.frequency.setTargetAtTime(180 + k * 420, t, 0.08);
   }
 }

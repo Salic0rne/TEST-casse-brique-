@@ -7,6 +7,7 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "serve": "node tools/serve.js",
+    "simulate": "node tools/simulate.mjs",
     "dist": "electron-builder"
   },
   "license": "MIT",

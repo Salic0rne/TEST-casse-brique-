@@ -38,6 +38,7 @@ export class Match {
     this.cam = { x: W / 2, y: CY, zoom: 0.8, kx: 0, ky: 0, targetZoom: 0.86 };
     this.events = [];
     this.result = null;
+    this.rec = []; this.recN = 0; this.recT = 0; this.goalFrame = 0; this.replay = null; this.replayEnabled = !!o.replay;
 
     this.teams = [0, 1].map((i) => ({
       i, def: this.defs[i], attackDir: i === 0 ? 1 : -1, score: 0, goals: 0, mult: 1, coins: 0, freeze: 0,
@@ -88,6 +89,7 @@ export class Match {
   // ------------------------------------------------------------------ boucle
   update(realDt) {
     const fx = this.fx;
+    if (this.replay) { this.updateReplay(realDt); return; }
     // hit-stop : la simulation gèle, les effets continuent doucement
     if (fx.hitstop > 0) { fx.hitstop -= realDt; fx.update(realDt * 0.2); this.updateCamera(realDt); return; }
     this.timeScale += (this.targetScale - this.timeScale) * (1 - Math.exp(-8 * realDt));
@@ -110,6 +112,70 @@ export class Match {
     this.hint = Math.max(0, this.hint - realDt);
     this.excite += (this.targetExcite() - this.excite) * (1 - Math.exp(-2 * realDt));
     this.audio.setCrowd(this.excite);
+    this.audio.setRoll(b.state === 'free' && !b.holder && b.z < 2 && this.phase !== 'goal' ? Math.min(1, Math.hypot(b.vx, b.vy) / 1100) : 0);
+    if (this.phase === 'play' || this.phase === 'overtime' || this.phase === 'goal') this.record(realDt);
+  }
+
+  // ------------------------------------------------------------------ replay des buts
+  record(dt) {
+    this.recT = (this.recT || 0) + dt; this.recN = (this.recN || 0) + 1;
+    const b = this.ball, c = this.cam;
+    this.rec.push({
+      rt: this.recT,
+      ball: { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, r: b.r, rot: b.rot, heat: b.heat, lastTeam: b.lastTeam, state: b.state, holder: b.holder ? true : null, s: Math.hypot(b.vx, b.vy), trail: null },
+      cam: { x: c.x, y: c.y, zoom: c.zoom, kx: 0, ky: 0 },
+      players: this.players.map((p) => ({
+        id: p.id, team: p.team, idx: p.idx, role: p.role, num: p.num, r: p.r, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, fx: p.fx, fy: p.fy, flip: p.flip,
+        runPhase: p.runPhase, hasBall: p.hasBall, chargeT: p.chargeT, stun: p.stun, slideT: p.slideT, slideDx: p.slideDx, slideDy: p.slideDy,
+        celebrate: p.celebrate, sad: p.sad, sq: p.sq, blink: p.blink, speedT: p.speedT, powerT: p.powerT, reach: p.reach, hurtT: 0,
+      })),
+    });
+    if (this.rec.length > 520) this.rec.shift();
+  }
+
+  startReplay() {
+    if (!this.replayEnabled) return false;
+    const n = this.rec.length, goalPos = n - (this.recN - this.goalFrame);
+    const from = Math.max(0, goalPos - 230), to = Math.min(n, goalPos + 34);
+    if (to - from < 60) return false;
+    const frames = this.rec.slice(from, to);
+    this.replay = { frames, i: 0, rc: frames[0].rt, goalRt: this.rec[Math.min(n - 1, Math.max(0, goalPos))].rt, hit: false, elapsed: 0, skip: false };
+    this.fx.clear(); this.audio.sfx('whoosh'); this.audio.duckMusic(0.15);
+    this.targetScale = 1; this.timeScale = 1; this.acc = 0;
+    return true;
+  }
+
+  updateReplay(dt) {
+    const R = this.replay, fx = this.fx;
+    R.elapsed += dt;
+    const cur = R.frames[R.i], near = Math.abs(cur.rt - R.goalRt) < 0.28;
+    R.rc += dt * (near ? 0.2 : 0.62);
+    while (R.i < R.frames.length - 1 && R.frames[R.i + 1].rt <= R.rc) R.i++;
+    if (!R.hit && R.frames[R.i].rt >= R.goalRt) {
+      R.hit = true; fx.doFlash(0.35, '#fff'); fx.shake(0.5); this.audio.sfx('bigtext');
+      const b = R.frames[R.i].ball; fx.ring(b.x, b.y, b.z, '#fff', 200, 0.6, 10, false); fx.sparks(b.x, b.y, b.z, 30, PAL.mustardLight, 700);
+    }
+    fx.update(dt);
+    this.audio.updateCrowd(dt);
+    if (R.i >= R.frames.length - 1 || R.skip || R.elapsed > 9) this.endReplay();
+  }
+
+  endReplay() {
+    this.replay = null; this.fx.clear(); this.audio.sfx('whoosh'); this.audio.duckMusic(1);
+    this.phaseT = Math.max(this.phaseT, 2.0);
+  }
+
+  skipReplay() { if (this.replay) this.replay.skip = true; }
+
+  // Vue "fantôme" du match utilisée par le rendu pendant le replay
+  replayView() {
+    const R = this.replay, f = R.frames[R.i];
+    const v = Object.create(this);
+    v.players = f.players; v.ball = f.ball; v.cam = f.cam; v.phase = 'replay'; v.announce = null;
+    const tr = [];
+    for (let k = Math.max(0, R.i - 14); k < R.i; k++) { const b = R.frames[k].ball; tr.push({ x: b.x, y: b.y, z: b.z, s: b.s }); }
+    f.ball.trail = tr;
+    return v;
   }
 
   targetExcite() {
@@ -205,6 +271,7 @@ export class Match {
     } else if (ph === 'goal') {
       // ralenti, puis retour aux positions
       if (this.phaseT < 1.1) this.targetScale = 0.28; else if (this.phaseT < 1.5) this.targetScale = 0.6; else this.targetScale = 1;
+      if (this.phaseT > 1.9 && !this._replayDone) { this._replayDone = true; if (this.startReplay()) return; }
       if (this.phaseT > 1.9 && !this._retFlag) { this._retFlag = true; for (const p of this.players) { p.returnHome = true; p.celebrate = 0; p.sad = 0; } }
       if (this.phaseT > 3.9) {
         for (const p of this.players) { const h = this.homeFor(p); p.x = h.x; p.y = h.y; p.vx = p.vy = 0; p.returnHome = false; p.stun = 0; }
@@ -272,7 +339,7 @@ export class Match {
 
   afterSecondHalf() {
     const a = this.teams[0].score, b = this.teams[1].score;
-    if (a === b) {
+    if (a === b && !this.overtime) {
       // mort subite
       this.overtime = true; this.clock = 0;
       this.announceText('MORT SUBITE !', 'Le prochain point gagne', PAL.salmonLight, 2.6);
@@ -531,7 +598,7 @@ export class Match {
     for (let i = 0; i < 4; i++) this.fx.star(o.x, o.y, 60, PAL.mustardLight, 13);
     this.fx.text(pick(['BAM!', 'CRASH!', 'WHAM!', 'BONK!', 'SMACK!']), mx, my, { size: 58, color: had ? PAL.salmonLight : PAL.mustardLight, z: 70, rise: 90, life: 0.9 });
     o.sqv -= 6; o.hurtT = 0.3;
-    this.excite = Math.min(1, this.excite + 0.15); this.audio.swell(0.25, 1);
+    this.excite = Math.min(1, this.excite + 0.15); this.audio.swell(0.25, 1); this.cam.punch = Math.max(this.cam.punch || 0, had ? 0.05 : 0.03);
     this.cam.kx += a.slideDx * 26; this.cam.ky += a.slideDy * 20;
   }
 
@@ -905,7 +972,8 @@ export class Match {
     sc.goals++; this.addScore(sc, pts, side === 0 ? 120 : W - 120, CY - 100, `+${pts}`, true);
     sc.mult = 1;
     this.lastGoalSide = side; this.scoredTeam = sc.i;
-    this.setPhase('goal'); this._retFlag = false;
+    this.setPhase('goal'); this._retFlag = false; this._replayDone = false; this.goalFrame = this.recN;
+    this.cam.punch = 0.07;
     this.goalFlash[side] = 1.5; this.targetScale = 0.28;
     // réactions
     for (const p of this.players) {
@@ -984,7 +1052,8 @@ export class Match {
     else if (this.phase === 'intro') { const k = this.phaseT / 2.4; tx = lerp(200, W - 200, k * k * (3 - 2 * k)); ty = CY; zoom = 0.78 + k * 0.08; }
     else if (this.phase === 'halftime' || this.phase === 'fulltime') { tx = W / 2; ty = CY; zoom = 0.74; }
     else if (this.phase === 'kickoff') { tx = lerp(cam.x, W / 2, 0.1); ty = CY; }
-    cam.targetZoom = zoom;
+    cam.punch = (cam.punch || 0) * Math.exp(-5 * dt);
+    cam.targetZoom = zoom + cam.punch;
     const kx = this.phase === 'goal' ? 3 : 5.5;
     cam.x += (tx - cam.x) * (1 - Math.exp(-kx * dt));
     cam.y += ((CY - 6 + (ty - CY) * 0.16) - cam.y) * (1 - Math.exp(-3 * dt));

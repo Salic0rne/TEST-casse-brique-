@@ -29,6 +29,18 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   if (DEV) win.webContents.openDevTools({ mode: 'detach' });
 
+  // Auto-test (CI / vérification) : --selftest=/chemin/capture.png => capture après quelques secondes puis quitte.
+  const st = process.argv.find((a) => a.startsWith('--selftest='));
+  if (st) {
+    win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) console.log('[renderer]', msg); });
+    setTimeout(async () => {
+      const img = await win.webContents.capturePage();
+      require('fs').writeFileSync(st.split('=')[1], img.toPNG());
+      console.log('selftest ok');
+      app.quit();
+    }, 7000);
+  }
+
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
     if (input.key === 'F11' || (input.alt && input.key === 'Enter')) {
