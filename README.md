@@ -61,7 +61,8 @@ src/js/audio.js         moteur WebAudio + bibliothèque de SFX
 src/js/music.js         séquenceur musical génératif
 src/js/ui.js            menus, options, pause, résultats
 src/js/input.js         clavier + manettes
-tools/shot.js           captures automatiques (Chromium headless) pour vérifier le rendu
+tools/shot.js           captures automatiques (Chromium headless, nécessite `playwright` installé globalement)
+tools/simulate.mjs      simulation de matchs IA contre IA (stabilité + équilibrage) : `npm run simulate`
 ```
 
 `npx electron . --selftest=capture.png` lance l'application, sauvegarde une capture et quitte (vérification rapide).
