@@ -2,6 +2,7 @@
 
 Sport de combat en arène, post-apocalyptique, inspiré de **Speedball 2** (Amiga).
 Deux gangs de 6 joueurs (gardien + 5), une balle en acier, 2 × 90 s, aucune pitié.
+Terrain **vertical** à la Speedball 2 (buts en haut et en bas, défilement vertical, toute la largeur visible).
 
 Ce dépôt couvre uniquement la **partie in-game** : match, règles, IA, rendu, effets, audio.
 La progression, les stats évolutives, le championnat et le mercato viendront plus tard
@@ -31,13 +32,15 @@ npm run dist       # exécutable Windows / macOS / Linux (dossier dist/)
 Avec des manettes, chaque joueur prend automatiquement la sienne.
 `F11` plein écran · `M` couper la musique · `F3` compteur de performances.
 
+Menu : langue **Français / English**, graphismes **Auto / Maximum / Performance** (réglages mémorisés).
+
 Visée assistée : si le stick pointe vers un coéquipier ou vers le but, la passe/le tir s'y verrouille (avec anticipation de la course du receveur).
 
 ## Règles
 
 - **But** : 10 pts × multiplicateur.
-- **Rampe multiplicateur** (au centre des murs haut et bas) : y envoyer la balle donne ×1.5 puis ×2 à ton équipe et remet l'adversaire à ×1.
-- **Étoiles** (6 en haut, 6 en bas) : toucher une étoile avec la balle la passe à ta couleur, +2 pts tant qu'elle reste allumée. Toute la rangée = +10 bonus.
+- **Rampe multiplicateur** (au milieu des murs gauche et droit) : y envoyer la balle donne ×1.5 puis ×2 à ton équipe et remet l'adversaire à ×1.
+- **Étoiles** (6 sur le mur gauche, 6 sur le mur droit) : toucher une étoile avec la balle la passe à ta couleur, +2 pts tant qu'elle reste allumée. Toute la rangée = +10 bonus.
 - **K.O.** : chaque tacle retire de la santé ; un adversaire mis K.O. rapporte +5.
 - **Bumpers** : renvoient et accélèrent la balle.
 - **Bobines électriques** : électrifient la balle pour l'équipe qui l'a lancée ; un adversaire qui l'attrape est électrocuté.
@@ -54,6 +57,7 @@ Visée assistée : si le stick pointe vers un coéquipier ou vers le but, la pas
   - **game feel** : hit-stop, ralentis sur les K.O. et les buts, secousses de caméra, caméra dynamique avec anticipation ;
   - **audio Web Audio 100 % synthétisé** : impacts, métal, bumpers FM, électricité, sirène, explosions, foule réactive avec formants, réverbération d'arène à convolution, et **musique procédurale adaptative** (tambours de guerre, guitare saturée, basse, lead) dont l'intensité suit le match.
 - Simulation à pas fixe de 1/120 s, rendu découplé.
+- **Performance** : sol pré-calculé envoyé une seule fois au GPU, décalques (sang, brûlures) sur tuiles séparées, public pré-rendu en frames d'animation, textes mis en cache, **résolution interne dynamique** (baisse automatique si la machine ne tient pas ~55 i/s), détection du rendu logiciel (sans GPU) → mode performance.
 
 ## Structure
 

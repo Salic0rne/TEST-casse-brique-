@@ -1,196 +1,202 @@
-// Scene renderer: composes floor, crowd, furniture, y-sorted sprites, particles, lights and
-// screen-space announcer text into the 2D scene canvas that the WebGL post pass consumes.
-import { FIELD_W as W, FIELD_H as H, CX, CY, GOAL_HALF, GOAL_DEPTH, BUMPERS, ELECTRO, STAR_XS, RAMP_HALF, TEAMS } from '../game/constants.js';
-import { drawFloor, drawCrowd, drawLights, barrelSprites, emitBarrelFire, starPath, TOP_WALL } from './arena.js';
+// Scene renderer: floor, crowd, furniture, y-sorted sprites, particles, lights and the
+// screen-space announcer, composed into the 2D scene canvas that the WebGL pass consumes.
+import { FIELD_W as W, FIELD_H as H, CX, CY, GOAL_HALF, GOAL_DEPTH, BUMPERS, ELECTRO, STAR_YS, RAMP_HALF } from '../game/constants.js';
+import { drawFloor, drawCrowd, drawLights, barrelSprites, emitBarrelFire, starPath, LEDGE } from './arena.js';
 import { drawPlayer, drawShadow, drawRing, drawBall, drawBallGlow } from './sprites.js';
 import { fx, glowSprite } from './fx.js';
+import { drawText } from './text.js';
 import { TAU, rand, clamp, easeOutBack } from '../core/math.js';
 
-const TEAM_RGB = ['255,130,40', '60,200,255'];
+const TEAM_RGB = ['242,100,30', '205,230,240'];
+const list = [];
+const byY = (a, b) => a.y - b.y;
 
-export function renderScene(ctx, match, cam, cw, ch, time) {
+export function renderScene(ctx, match, cam, cw, ch, time, dt) {
   const view = cam.view;
   const s = cw / cam.viewW;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#07040a';
+  ctx.fillStyle = '#070504';
   ctx.fillRect(0, 0, cw, ch);
   ctx.setTransform(s, 0, 0, s, -(view.x0 + fx.shakeX) * s, -(view.y0 + fx.shakeY) * s);
   ctx.imageSmoothingEnabled = true;
 
   drawFloor(ctx, view);
-  drawCrowd(ctx, view, time, match.excitement);
+  drawCrowd(ctx, view, time, match.excitement, dt);
   drawGoalPits(ctx, match, time);
   drawStars(ctx, match, time);
   drawRamps(ctx, match, time);
-  drawElectro(ctx, match, time);
+  drawElectro(ctx, match, time, dt);
   drawLauncher(ctx, match, time);
   drawTokens(ctx, match, time);
 
-  // Shadows & rings under players
   for (const p of match.players) {
+    if (p.y < view.y0 - 120 || p.y > view.y1 + 150) continue;
     drawShadow(ctx, p);
-    const tr = TEAM_RGB[p.team.idx];
     if (p.human) {
-      const pulse = 0.75 + Math.sin(time * 8) * 0.25;
       ctx.globalCompositeOperation = 'lighter';
-      drawRing(ctx, p, p.human.color, 5, pulse, 30);
+      drawRing(ctx, p, p.human.color, 3.5, 0.7 + Math.sin(time * 8) * 0.2, 28);
       ctx.globalCompositeOperation = 'source-over';
-      if (p.charging) {
-        const c = Math.min(1, p.chargeT / 0.45);
-        ctx.strokeStyle = c >= 1 ? '#ff3a1a' : '#ffd23a';
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.ellipse(p.x, p.y + 2, 38, 19, 0, -Math.PI / 2, -Math.PI / 2 + c * TAU);
-        ctx.stroke();
-        // Aim line
-        if (p.aimX !== undefined) {
-          ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = `rgba(255,220,120,${0.25 + c * 0.35})`;
-          ctx.lineWidth = 3;
-          ctx.setLineDash([10, 10]);
-          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.aimX * (140 + c * 160), p.y + p.aimY * (140 + c * 160)); ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.globalCompositeOperation = 'source-over';
-        }
-      }
+      if (p.charging) drawCharge(ctx, p);
     } else {
-      drawRing(ctx, p, `rgba(${tr},1)`, 2.5, p.grounded ? 0.25 : 0.6, 25);
-    }
-    if (p.hasBall) {
-      ctx.globalCompositeOperation = 'lighter';
-      drawRing(ctx, p, '#ffffff', 2, 0.35 + Math.sin(time * 12) * 0.2, 34);
-      ctx.globalCompositeOperation = 'source-over';
+      drawRing(ctx, p, `rgba(${TEAM_RGB[p.team.idx]},1)`, 2.5, p.grounded ? 0.15 : 0.55, 24);
     }
   }
 
   // Y-sorted sprites
-  const list = [];
-  for (const p of match.players) list.push({ y: p.y, draw: (c) => drawPlayer(c, p, p.team.def, time, match.ball) });
-  BUMPERS.forEach((b, i) => list.push({ y: b.y, draw: (c) => drawBumper(c, b, match.bumperFlash[i], time) }));
-  for (const side of [0, 1]) for (const top of [true, false]) {
-    const x = side ? W : 0, y = top ? CY - GOAL_HALF : CY + GOAL_HALF;
-    list.push({ y: y + (top ? -1 : 1), draw: (c) => drawGoalPost(c, x, y, top, side, match, time) });
+  list.length = 0;
+  for (const p of match.players) {
+    if (p.y < view.y0 - 120 || p.y > view.y1 + 150) continue;
+    list.push({ y: p.y, draw: (c) => drawPlayer(c, p, p.team.def, time, match.ball) });
   }
-  barrelSprites(list, time);
+  for (let i = 0; i < BUMPERS.length; i++) {
+    const b = BUMPERS[i];
+    if (b.y < view.y0 - 100 || b.y > view.y1 + 100) continue;
+    list.push({ y: b.y, draw: (c) => drawBumper(c, b, match.bumperFlash[i], time) });
+  }
+  for (const top of [true, false]) {
+    const gy = top ? 0 : H;
+    if (gy < view.y0 - 200 || gy > view.y1 + 200) continue;
+    for (const side of [-1, 1]) list.push({ y: gy + (top ? -2 : 2), draw: (c) => drawPost(c, CX + side * GOAL_HALF, gy, match, time) });
+    list.push({ y: gy + (top ? -1 : 3), draw: (c) => drawCrossbar(c, gy, match) });
+  }
+  barrelSprites(list, view, time);
   const b = match.ball;
-  if (!b.owner && b.z > -5) list.push({ y: b.y, draw: (c) => drawBall(c, b, time) });
-  list.sort((a, d) => a.y - d.y);
+  if (!b.owner && b.z > -5) list.push({ y: b.y, draw: (c) => drawBall(c, b) });
+  list.sort(byY);
   for (const it of list) it.draw(ctx);
 
-  if (match.phase !== 'pause') emitBarrelFire(view);
+  emitBarrelFire(view, dt);
   fx.draw(ctx);
   drawLights(ctx, view, time);
-  if (!b.owner && b.z <= -5) { /* inside launcher */ } else drawBallGlow(ctx, b, time);
+  if (b.owner || b.z > -5) drawBallGlow(ctx, b, time);
   if (!b.owner) { b.drawX = undefined; b.drawY = undefined; }
-  drawTeamAuras(ctx, match, time);
+  drawTeamAuras(ctx, match, time, dt);
   fx.drawTexts(ctx);
-  drawOverheads(ctx, match, time);
+  drawOverheads(ctx, match, time, view);
 
-  // Screen space
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   drawAnnouncements(ctx, match, cw, ch, time);
 }
 
+function drawCharge(ctx, p) {
+  const c = Math.min(1, p.chargeT / 0.45);
+  ctx.strokeStyle = c >= 1 ? '#e8321a' : '#e8b83a';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y + 2, 36, 16, 0, -Math.PI / 2, -Math.PI / 2 + c * TAU);
+  ctx.stroke();
+  if (p.aimX !== undefined) {
+    ctx.strokeStyle = `rgba(255,210,130,${0.25 + c * 0.35})`;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 10]);
+    const l = 150 + c * 170;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.aimX * l, p.y + p.aimY * l); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function defenderOf(match, gy) {
+  return match.teams.find((tm) => match.ownGoalY(tm) === gy);
+}
+
 function drawGoalPits(ctx, match, time) {
   ctx.globalCompositeOperation = 'lighter';
-  for (const side of [0, 1]) {
-    const x = side ? W : 0;
-    const defender = match.teams.find((t) => match.ownGoalX(t) === x);
-    const rgb = TEAM_RGB[defender.idx];
+  for (let side = 0; side < 2; side++) {
+    const gy = side ? H : 0;
+    const rgb = TEAM_RGB[defenderOf(match, gy).idx];
     const goal = match.phase === 'goal' && match.goalInfo && match.goalInfo.side === side;
-    const a = goal ? 0.7 + Math.sin(time * 30) * 0.3 : 0.28 + Math.sin(time * 4 + side) * 0.08;
-    const g = ctx.createLinearGradient(x, 0, x + (side ? GOAL_DEPTH : -GOAL_DEPTH), 0);
-    g.addColorStop(0, `rgba(${rgb},${a})`);
-    g.addColorStop(1, `rgba(${rgb},0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(side ? x : x - GOAL_DEPTH, CY - GOAL_HALF, GOAL_DEPTH, GOAL_HALF * 2);
-    // Energy barrier scanlines across the mouth
-    ctx.strokeStyle = `rgba(${rgb},${0.35 + Math.random() * 0.2})`;
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 5; i++) {
-      const yy = CY - GOAL_HALF + ((time * 120 + i * 50) % (GOAL_HALF * 2));
-      ctx.beginPath(); ctx.moveTo(x - 6, yy); ctx.lineTo(x + 6, yy); ctx.stroke();
-    }
-    ctx.fillStyle = `rgba(${rgb},0.5)`;
-    ctx.fillRect(x - 2, CY - GOAL_HALF, 4, GOAL_HALF * 2);
+    const a = goal ? 0.6 + Math.sin(time * 30) * 0.3 : 0.18 + Math.sin(time * 4 + side) * 0.05;
+    const y0 = side ? H : -GOAL_DEPTH;
+    const grd = ctx.createLinearGradient(0, gy, 0, gy + (side ? GOAL_DEPTH : -GOAL_DEPTH));
+    grd.addColorStop(0, `rgba(${rgb},${a})`);
+    grd.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = grd;
+    ctx.fillRect(CX - GOAL_HALF, y0, GOAL_HALF * 2, GOAL_DEPTH);
+    // flickering energy barrier across the mouth
+    ctx.fillStyle = `rgba(${rgb},${0.25 + Math.random() * 0.15})`;
+    ctx.fillRect(CX - GOAL_HALF, gy - 2, GOAL_HALF * 2, 4);
   }
   ctx.globalCompositeOperation = 'source-over';
 }
 
-function drawGoalPost(ctx, x, y, top, side, match, time) {
-  const hgt = 118;
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.beginPath(); ctx.ellipse(x + 6, y + 4, 20, 9, 0, 0, TAU); ctx.fill();
-  const g = ctx.createLinearGradient(x - 13, 0, x + 13, 0);
-  g.addColorStop(0, '#221812'); g.addColorStop(0.4, '#6a5a4c'); g.addColorStop(1, '#1b1410');
-  ctx.fillStyle = '#0b0706';
-  ctx.fillRect(x - 15, y - hgt - 2, 30, hgt + 4);
+function drawPost(ctx, x, gy, match, time) {
+  const hgt = 120;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath(); ctx.ellipse(x + 6, gy + 4, 18, 8, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#070504';
+  ctx.fillRect(x - 12, gy - hgt - 2, 24, hgt + 4);
+  const g = ctx.createLinearGradient(x - 10, 0, x + 10, 0);
+  g.addColorStop(0, '#1c1511'); g.addColorStop(0.35, '#5a4a3d'); g.addColorStop(1, '#16110d');
   ctx.fillStyle = g;
-  ctx.fillRect(x - 13, y - hgt, 26, hgt);
-  // hazard bands
-  for (let k = 0; k < 4; k++) {
-    ctx.fillStyle = k % 2 ? '#15100c' : '#d2a01c';
-    ctx.fillRect(x - 13, y - 30 - k * 12, 26, 12);
-  }
-  // top light
-  const defender = match.teams.find((t) => match.ownGoalX(t) === x);
-  const col = TEAM_RGB[defender.idx];
-  ctx.fillStyle = `rgb(${col})`;
-  ctx.beginPath(); ctx.arc(x, y - hgt - 4, 8, 0, TAU); ctx.fill();
+  ctx.fillRect(x - 10, gy - hgt, 20, hgt);
+  ctx.fillStyle = 'rgba(110,40,15,0.6)';
+  ctx.fillRect(x - 10, gy - 70, 20, 30);
+  ctx.fillStyle = '#0a0706';
+  for (let k = 0; k < 4; k++) ctx.fillRect(x - 10, gy - hgt + 12 + k * 26, 20, 3);
+  const rgb = TEAM_RGB[defenderOf(match, gy).idx];
+  ctx.fillStyle = `rgb(${rgb})`;
+  ctx.fillRect(x - 6, gy - hgt - 6, 12, 5);
   ctx.globalCompositeOperation = 'lighter';
-  const gl = glowSprite(`rgba(${col},1)`, 64);
-  ctx.globalAlpha = 0.6 + Math.sin(time * 6) * 0.2;
-  ctx.drawImage(gl, x - 40, y - hgt - 44, 80, 80);
+  ctx.globalAlpha = 0.45 + Math.sin(time * 6) * 0.15;
+  ctx.drawImage(glowSprite(`rgba(${rgb},1)`, 64), x - 34, gy - hgt - 38, 68, 68);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  if (top) {
-    // Crossbar to the opposite post (drawn with the far post so players overlap it).
-    ctx.strokeStyle = '#0b0706'; ctx.lineWidth = 12;
-    ctx.beginPath(); ctx.moveTo(x, y - hgt + 10); ctx.lineTo(x, y + GOAL_HALF * 2 - hgt + 10); ctx.stroke();
-    ctx.strokeStyle = '#5a4b3f'; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(x, y - hgt + 10); ctx.lineTo(x, y + GOAL_HALF * 2 - hgt + 10); ctx.stroke();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = `rgba(${col},0.5)`; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(x, y - hgt + 10); ctx.lineTo(x, y + GOAL_HALF * 2 - hgt + 10); ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawCrossbar(ctx, gy, match) {
+  const y = gy - 112;
+  const bottom = gy === H;
+  ctx.globalAlpha = bottom ? 0.75 : 1; // keep players readable behind the near crossbar
+  ctx.fillStyle = '#070504';
+  ctx.fillRect(CX - GOAL_HALF, y - 7, GOAL_HALF * 2, 14);
+  ctx.fillStyle = '#4a3c31';
+  ctx.fillRect(CX - GOAL_HALF, y - 5, GOAL_HALF * 2, 10);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(CX - GOAL_HALF, y + 1, GOAL_HALF * 2, 4);
+  // chains hanging from the bar
+  ctx.strokeStyle = 'rgba(60,52,46,0.8)';
+  ctx.lineWidth = 2;
+  for (let x = CX - GOAL_HALF + 25; x < CX + GOAL_HALF; x += 45) {
+    ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x + 2, y + 30); ctx.stroke();
   }
+  ctx.globalAlpha = 1;
 }
 
 function drawBumper(ctx, b, flash, time) {
   const r = b.r;
   ctx.save();
   ctx.translate(b.x, b.y);
-  ctx.fillStyle = '#0b0706';
-  ctx.beginPath(); ctx.ellipse(0, 0, r + 8, (r + 8) * 0.62, 0, 0, TAU); ctx.fill();
-  ctx.fillStyle = '#4a3c32';
-  ctx.beginPath(); ctx.ellipse(0, 0, r + 5, (r + 5) * 0.6, 0, 0, TAU); ctx.fill();
-  // dome
-  const h = 26;
-  const g = ctx.createRadialGradient(-r * 0.35, -h - r * 0.2, 2, 0, -h * 0.4, r * 1.1);
-  const hot = flash;
-  g.addColorStop(0, hot > 0.1 ? '#fff6d8' : '#d8d0c4');
-  g.addColorStop(0.35, hot > 0.1 ? '#ffb24a' : '#8a7f74');
-  g.addColorStop(1, '#2a221c');
-  ctx.fillStyle = g;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath(); ctx.ellipse(6, 4, r + 12, (r + 12) * 0.55, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#0a0706';
+  ctx.beginPath(); ctx.ellipse(0, 0, r + 8, (r + 8) * 0.6, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#3a2e25';
+  ctx.beginPath(); ctx.ellipse(0, 0, r + 5, (r + 5) * 0.58, 0, 0, TAU); ctx.fill();
+  const h = 24;
+  const hot = flash > 0.1;
+  ctx.fillStyle = hot ? '#9a6a3a' : '#6a5646';
   ctx.beginPath();
   ctx.ellipse(0, -h * 0.35, r, r * 0.95, 0, Math.PI, 0);
-  ctx.ellipse(0, 0, r, r * 0.6, 0, 0, Math.PI);
+  ctx.ellipse(0, 0, r, r * 0.58, 0, 0, Math.PI);
   ctx.fill();
-  ctx.strokeStyle = '#0b0706'; ctx.lineWidth = 2.5; ctx.stroke();
-  // rim lights
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * TAU + time * 0.8;
-    const lx = Math.cos(a) * (r + 1), ly = Math.sin(a) * (r + 1) * 0.6;
-    if (ly < -2) continue;
-    const on = flash > 0.05 || (Math.floor(time * 6) + i) % 3 === 0;
-    ctx.fillStyle = on ? '#ffcf5a' : '#4a3a20';
-    ctx.beginPath(); ctx.arc(lx, ly, 3, 0, TAU); ctx.fill();
+  ctx.fillStyle = hot ? '#b07a40' : '#2a2019';
+  ctx.beginPath(); ctx.ellipse(6, -h * 0.2, r * 0.7, r * 0.6, 0, -0.2, Math.PI * 0.7); ctx.fill();
+  ctx.fillStyle = 'rgba(160,80,30,0.45)';
+  ctx.beginPath(); ctx.ellipse(-r * 0.35, -h - r * 0.25, r * 0.4, r * 0.22, -0.4, 0, TAU); ctx.fill();
+  // spikes around the dome
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * TAU + 0.2;
+    const sx = Math.cos(a) * r * 0.85, sy = -h * 0.3 + Math.sin(a) * r * 0.55;
+    const tx = Math.cos(a) * (r + 12), ty = -h * 0.3 + Math.sin(a) * (r * 0.55 + 8) - 6;
+    ctx.fillStyle = '#0b0807';
+    ctx.beginPath(); ctx.moveTo(sx - 3, sy); ctx.lineTo(tx, ty); ctx.lineTo(sx + 3, sy); ctx.fill();
+    ctx.fillStyle = '#958b80';
+    ctx.beginPath(); ctx.moveTo(sx - 1.5, sy); ctx.lineTo(tx, ty); ctx.lineTo(sx, sy); ctx.fill();
   }
   if (flash > 0.01) {
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = flash;
-    const gl = glowSprite('rgba(255,190,90,1)', 128);
-    ctx.drawImage(gl, -r * 2.5, -r * 2.8, r * 5, r * 5);
+    ctx.globalAlpha = flash * 0.8;
+    ctx.drawImage(glowSprite('rgba(255,160,80,1)', 128), -r * 2.3, -r * 2.6, r * 4.6, r * 4.6);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -198,255 +204,186 @@ function drawBumper(ctx, b, flash, time) {
 }
 
 function drawStars(ctx, match, time) {
-  for (const wall of ['top', 'bottom']) {
+  for (const wall of ['left', 'right']) {
     const row = match.stars[wall];
-    const y = wall === 'top' ? -TOP_WALL / 2 - 6 : H + 22;
-    const sc = wall === 'top' ? 1 : 0.8;
-    STAR_XS.forEach((sx, i) => {
+    const x = wall === 'left' ? -LEDGE / 2 : W + LEDGE / 2;
+    for (let i = 0; i < STAR_YS.length; i++) {
       const own = row[i];
       const fl = match.starFlash[wall][i];
-      if (own < 0 && fl <= 0) return;
+      if (own < 0 && fl <= 0) continue;
       const rgb = own >= 0 ? TEAM_RGB[own] : '255,255,255';
-      ctx.save();
-      ctx.translate(sx, y);
-      const k = sc * (1 + fl * 0.6);
-      ctx.scale(k, k);
-      starPath(ctx, 0, 0, 18, 8);
+      const y = STAR_YS[i];
+      const k = 1 + fl * 0.5;
+      starPath(ctx, x, y, 15 * k, 6.5 * k);
       ctx.fillStyle = `rgb(${rgb})`;
       ctx.fill();
-      starPath(ctx, -1, -1, 9, 4);
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fill();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.5 + fl * 0.5 + Math.sin(time * 5 + i) * 0.1;
-      ctx.drawImage(glowSprite(`rgba(${rgb},1)`, 64), -45, -45, 90, 90);
-      ctx.restore();
-    });
+      ctx.globalAlpha = 0.45 + fl * 0.5 + Math.sin(time * 5 + i) * 0.08;
+      ctx.drawImage(glowSprite(`rgba(${rgb},1)`, 64), x - 42, y - 42, 84, 84);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
   }
 }
 
 function drawRamps(ctx, match, time) {
-  for (const [wi, top] of [[0, true], [1, false]]) {
-    const y = top ? -TOP_WALL / 2 - 6 : H + 22;
-    const leader = match.teams.find((t) => t.mult > 0);
-    const rgb = leader ? TEAM_RGB[leader.idx] : '200,180,150';
+  const leader = match.teams.find((tm) => tm.mult > 0);
+  const rgb = leader ? TEAM_RGB[leader.idx] : '120,100,80';
+  for (let wi = 0; wi < 2; wi++) {
+    const x = wi === 0 ? -LEDGE / 2 : W + LEDGE / 2;
     const fl = match.rampFlash[wi];
-    ctx.save();
-    ctx.translate(CX, y);
-    // chevrons
     for (let i = -3; i <= 3; i++) {
       const on = leader ? (Math.floor(time * 8) - i + 7) % 7 < 3 : false;
-      ctx.fillStyle = on || fl > 0 ? `rgba(${rgb},${0.9})` : 'rgba(80,70,60,0.8)';
-      const x = i * 24;
+      ctx.fillStyle = on || fl > 0 ? `rgba(${rgb},0.95)` : 'rgba(70,58,48,0.9)';
+      const y = CY + i * 26;
       ctx.beginPath();
-      ctx.moveTo(x - 6, -12); ctx.lineTo(x + 4, 0); ctx.lineTo(x - 6, 12); ctx.lineTo(x - 1, 12); ctx.lineTo(x + 9, 0); ctx.lineTo(x - 1, -12);
+      ctx.moveTo(x - 12, y - 6); ctx.lineTo(x, y + 4); ctx.lineTo(x + 12, y - 6); ctx.lineTo(x + 12, y); ctx.lineTo(x, y + 10); ctx.lineTo(x - 12, y);
       ctx.fill();
     }
-    ctx.font = '18px Bebas, Impact, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = leader ? `rgb(${rgb})` : '#8a7a6a';
-    ctx.fillText(leader ? `x${[1, 1.5, 2][leader.mult]}` : 'x1.5', 0, top ? -20 : 32);
     if (leader || fl > 0) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.35 + fl * 0.5;
-      ctx.drawImage(glowSprite(`rgba(${rgb},1)`, 64), -RAMP_HALF * 1.3, -60, RAMP_HALF * 2.6, 120);
+      ctx.globalAlpha = 0.3 + fl * 0.5;
+      ctx.drawImage(glowSprite(`rgba(${rgb},1)`, 64), x - 60, CY - RAMP_HALF * 1.2, 120, RAMP_HALF * 2.4);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
     }
-    ctx.restore();
   }
 }
 
-function drawElectro(ctx, match, time) {
-  const b = match.ball;
-  ELECTRO.forEach((e, i) => {
+function drawElectro(ctx, match, time, dt) {
+  for (let i = 0; i < ELECTRO.length; i++) {
+    const e = ELECTRO[i];
     const fl = match.electroFlash[i];
-    ctx.save();
-    ctx.translate(e.x, e.y);
-    // coil
-    ctx.fillStyle = '#0d0d0d';
-    ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#0a0908';
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 8, 0, TAU); ctx.fill();
     for (let k = 0; k < 4; k++) {
-      ctx.strokeStyle = k % 2 ? '#7a5a2a' : '#b88a3a';
+      ctx.strokeStyle = k % 2 ? '#5a4128' : '#8a6538';
       ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(0, 0, e.r - 4 - k * 5, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r - 3 - k * 5, 0, TAU); ctx.stroke();
     }
     ctx.globalCompositeOperation = 'lighter';
-    const pulse = 0.35 + Math.sin(time * 7 + i) * 0.15 + fl * 0.6;
-    ctx.globalAlpha = pulse;
-    ctx.drawImage(glowSprite('rgba(80,210,255,1)', 64), -e.r * 2.4, -e.r * 2.4, e.r * 4.8, e.r * 4.8);
+    ctx.globalAlpha = 0.25 + Math.sin(time * 7 + i) * 0.1 + fl * 0.6;
+    ctx.drawImage(glowSprite('rgba(80,190,255,1)', 64), e.x - e.r * 2.3, e.y - e.r * 2.3, e.r * 4.6, e.r * 4.6);
     ctx.globalAlpha = 1;
-    ctx.restore();
     ctx.globalCompositeOperation = 'source-over';
-    if (Math.random() < 0.06 + fl * 0.5) {
+    if (Math.random() < dt * (3 + fl * 30)) {
       const a = rand(0, TAU);
-      fx.arc(e.x, e.y, 2, e.x + Math.cos(a) * rand(20, 50), e.y + Math.sin(a) * rand(14, 30), rand(0, 20), '#9ff6ff', 0.1);
+      fx.arc(e.x, e.y, 2, e.x + Math.cos(a) * rand(20, 50), e.y + Math.sin(a) * rand(14, 30), rand(0, 20), '#9fe8ff', 0.1);
     }
-  });
+  }
 }
 
 function drawLauncher(ctx, match, time) {
   if (match.phase !== 'kickoff') return;
-  const t = match.phaseT;
-  ctx.save();
-  ctx.translate(CX, CY);
+  const k = Math.min(1, match.phaseT / 2);
   ctx.globalCompositeOperation = 'lighter';
-  const k = Math.min(1, t / 2);
-  ctx.globalAlpha = 0.4 + k * 0.5;
-  ctx.drawImage(glowSprite('rgba(255,70,30,1)', 64), -90, -90, 180, 180);
-  ctx.strokeStyle = `rgba(255,120,60,${0.5 + k * 0.5})`;
+  ctx.globalAlpha = 0.3 + k * 0.5;
+  ctx.drawImage(glowSprite('rgba(255,60,20,1)', 64), CX - 80, CY - 80, 160, 160);
+  ctx.strokeStyle = `rgba(255,110,50,${0.5 + k * 0.5})`;
   ctx.lineWidth = 4;
   for (let i = 0; i < 3; i++) {
     const a = time * 4 + (i * TAU) / 3;
-    ctx.beginPath(); ctx.arc(0, 0, 44, a, a + 0.8); ctx.stroke();
+    ctx.beginPath(); ctx.arc(CX, CY, 42, a, a + 0.8); ctx.stroke();
   }
-  ctx.restore();
-  ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
 }
 
 const TOKEN_STYLE = {
-  rage: { c: '255,70,30', label: 'R' },
-  shock: { c: '90,230,255', label: 'E' },
-  freeze: { c: '170,220,255', label: 'F' },
-  medic: { c: '110,255,140', label: '+' },
-  cash: { c: '255,210,60', label: '$' },
+  rage: { c: '220,60,25', label: 'R' },
+  shock: { c: '90,200,255', label: 'E' },
+  freeze: { c: '170,210,230', label: 'F' },
+  medic: { c: '140,200,110', label: '+' },
+  cash: { c: '220,180,60', label: '$' },
 };
 
 function drawTokens(ctx, match, time) {
   for (const tk of match.tokens) {
     const st = TOKEN_STYLE[tk.type];
-    const blink = tk.life - tk.t < 3 && Math.sin(time * 20) > 0;
-    if (blink) continue;
-    const hover = 20 + Math.sin(time * 4 + tk.x) * 5;
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.ellipse(tk.x, tk.y, 16, 7, 0, 0, TAU); ctx.fill();
-    const w = Math.abs(Math.cos(time * 3 + tk.y)) * 16 + 3;
-    ctx.fillStyle = '#0b0706';
-    ctx.beginPath(); ctx.ellipse(tk.x, tk.y - hover, w + 3, 19, 0, 0, TAU); ctx.fill();
+    if (tk.life - tk.t < 3 && Math.sin(time * 20) > 0) continue;
+    // Battered canister with a painted symbol.
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.ellipse(tk.x + 4, tk.y + 2, 18, 8, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#0a0706';
+    ctx.fillRect(tk.x - 14, tk.y - 40, 28, 42);
+    ctx.fillStyle = '#4a3c30';
+    ctx.fillRect(tk.x - 12, tk.y - 38, 24, 38);
     ctx.fillStyle = `rgb(${st.c})`;
-    ctx.beginPath(); ctx.ellipse(tk.x, tk.y - hover, w, 16, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#140a06';
-    ctx.font = '22px BlackOps, Impact, sans-serif';
+    ctx.fillRect(tk.x - 12, tk.y - 30, 24, 16);
+    ctx.fillStyle = '#0c0806';
+    ctx.font = '600 16px Cond, Impact, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    if (w > 9) ctx.fillText(st.label, tk.x, tk.y - hover + 1);
+    ctx.fillText(st.label, tk.x, tk.y - 21);
+    ctx.fillStyle = '#2a211a';
+    ctx.beginPath(); ctx.ellipse(tk.x, tk.y - 39, 12, 4, 0, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.6;
-    ctx.drawImage(glowSprite(`rgba(${st.c},1)`, 64), tk.x - 45, tk.y - hover - 45, 90, 90);
+    ctx.globalAlpha = 0.35 + Math.sin(time * 5) * 0.15;
+    ctx.drawImage(glowSprite(`rgba(${st.c},1)`, 64), tk.x - 40, tk.y - 60, 80, 80);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
 }
 
-function drawTeamAuras(ctx, match, time) {
-  ctx.globalCompositeOperation = 'lighter';
-  for (const t of match.teams) {
-    if (t.rageT <= 0 && t.freezeT <= 0) continue;
-    const col = t.rageT > 0 ? 'rgba(255,60,20,1)' : 'rgba(150,220,255,1)';
-    for (const p of t.players) {
-      ctx.globalAlpha = 0.35 + Math.sin(time * 10 + p.idx) * 0.1;
-      ctx.drawImage(glowSprite(col, 64), p.x - 45, p.y - 90, 90, 110);
-      if (t.rageT > 0 && Math.random() < 0.15) fx.fire(p.x, p.y, 20, 1, 10, 10);
+function drawTeamAuras(ctx, match, time, dt) {
+  for (const tm of match.teams) {
+    if (tm.rageT <= 0 && tm.freezeT <= 0) continue;
+    const col = tm.rageT > 0 ? 'rgba(255,60,20,1)' : 'rgba(150,210,240,1)';
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of tm.players) {
+      ctx.globalAlpha = 0.28 + Math.sin(time * 10 + p.idx) * 0.08;
+      ctx.drawImage(glowSprite(col, 64), p.x - 40, p.y - 100, 80, 110);
+      if (tm.rageT > 0 && Math.random() < dt * 8) fx.fire(p.x, p.y, 30, 1, 9, 10);
     }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
 }
 
-function drawOverheads(ctx, match, time) {
+function drawOverheads(ctx, match, time, view) {
   for (const p of match.players) {
-    const headY = p.y - p.z - 112;
+    if (p.y < view.y0 - 50 || p.y > view.y1 + 150) continue;
+    const headY = p.y - p.z - 118;
     if (p.human) {
-      const bob = Math.sin(time * 6) * 4;
-      ctx.fillStyle = '#0b0706';
-      ctx.beginPath(); ctx.moveTo(p.x - 14, headY - 18 + bob); ctx.lineTo(p.x + 14, headY - 18 + bob); ctx.lineTo(p.x, headY + 2 + bob); ctx.fill();
+      const bob = Math.sin(time * 6) * 3;
+      ctx.fillStyle = '#070504';
+      ctx.beginPath(); ctx.moveTo(p.x - 12, headY - 16 + bob); ctx.lineTo(p.x + 12, headY - 16 + bob); ctx.lineTo(p.x, headY + 2 + bob); ctx.fill();
       ctx.fillStyle = p.human.color;
-      ctx.beginPath(); ctx.moveTo(p.x - 10, headY - 16 + bob); ctx.lineTo(p.x + 10, headY - 16 + bob); ctx.lineTo(p.x, headY - 2 + bob); ctx.fill();
-      ctx.font = '20px Bebas, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.lineWidth = 4; ctx.strokeStyle = '#0b0706';
-      ctx.strokeText(`P${p.human.id + 1}`, p.x, headY - 24 + bob);
-      ctx.fillText(`P${p.human.id + 1}`, p.x, headY - 24 + bob);
+      ctx.beginPath(); ctx.moveTo(p.x - 8.5, headY - 14 + bob); ctx.lineTo(p.x + 8.5, headY - 14 + bob); ctx.lineTo(p.x, headY - 2 + bob); ctx.fill();
+      drawText(ctx, `P${p.human.id + 1}`, p.x, headY - 28 + bob, 22, { font: 'Cond', weight: 700, fill: p.human.color, stroke: '#070504', strokeW: 4, erosion: 0 });
     }
-    if ((p.hitImmune > 0 && !p.human) || p.health < 35 || p.state === 'ko') {
-      const w = 44, h = 6;
-      const x = p.x - w / 2, y = p.y - p.z - (p.grounded ? 44 : 100);
-      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    if ((p.hitImmune > 0 && p.health < 100) || p.state === 'ko') {
+      const w = 40, h = 5;
+      const x = p.x - w / 2, y = p.y - p.z - (p.grounded ? 44 : 104);
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
       ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
       const hp = clamp(p.health / 100, 0, 1);
-      ctx.fillStyle = hp > 0.5 ? '#9bd13a' : hp > 0.25 ? '#e8a21c' : '#e22a1a';
+      ctx.fillStyle = hp > 0.5 ? '#8a9a3a' : hp > 0.25 ? '#c8801c' : '#c01a10';
       ctx.fillRect(x, y, w * hp, h);
-    }
-    if (p.state === 'ko' || (p.state === 'stun')) {
-      // Orbiting stars/skulls
-      for (let i = 0; i < 3; i++) {
-        const a = time * 5 + (i * TAU) / 3;
-        const sx = p.x + Math.cos(a) * 20, sy = p.y - p.z - (p.state === 'ko' ? 30 : 80) + Math.sin(a) * 7;
-        starPath(ctx, sx, sy, 6, 2.6);
-        ctx.fillStyle = '#ffe36a';
-        ctx.fill();
-      }
     }
   }
 }
 
 function drawAnnouncements(ctx, match, cw, ch, time) {
   const u = ch / 1080;
-  const list = match.announcements;
-  if (!list.length) return;
-  const a = list[list.length - 1];
+  const arr = match.announcements;
+  if (!arr.length) return;
+  const a = arr[arr.length - 1];
   const t = a.t;
-  const inT = Math.min(1, t / 0.16);
+  const inT = Math.min(1, t / 0.14);
   const out = t > a.dur - 0.25 ? (a.dur - t) / 0.25 : 1;
-  const sc = t < 0.16 ? 2.6 - 1.6 * easeOutBack(inT) : 1 + Math.max(0, 0.04 - (t - 0.16) * 0.05);
-  const big = a.text.length <= 3;
-  const size = (big ? 190 : a.text.length > 12 ? 92 : 124) * u;
-  const cx = cw / 2, cy = ch * (big ? 0.42 : 0.3);
-  ctx.save();
+  const big = a.text.length <= 4;
+  const size = (big ? 200 : a.text.length > 12 ? 104 : 140) * u;
+  const sc = t < 0.14 ? 2.2 - 1.2 * easeOutBack(inT) : 1 + Math.max(0, 0.03 - (t - 0.14) * 0.04);
+  const jitter = t < 0.25 ? rand(-5, 5) * u : 0;
   ctx.globalAlpha = clamp(out, 0, 1);
-  ctx.translate(cx + (t < 0.3 ? rand(-6, 6) * u : 0), cy + (t < 0.3 ? rand(-6, 6) * u : 0));
-  ctx.scale(sc, sc);
-  ctx.rotate(-0.035);
-  // Torn banner behind text
-  if (!big) {
-    ctx.font = `${size}px BlackOps, Impact, sans-serif`;
-    const w = ctx.measureText(a.text).width + 120 * u;
-    ctx.fillStyle = 'rgba(12,4,2,0.82)';
-    ctx.beginPath();
-    ctx.moveTo(-w / 2, -size * 0.62);
-    for (let x = -w / 2; x <= w / 2; x += 26 * u) ctx.lineTo(x, -size * 0.62 + ((x * 13) % 7) * u);
-    ctx.lineTo(w / 2 + 20 * u, size * 0.5);
-    for (let x = w / 2; x >= -w / 2; x -= 26 * u) ctx.lineTo(x, size * 0.55 + ((x * 7) % 9) * u);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = a.color;
-    ctx.fillRect(-w / 2, size * 0.5, w, 6 * u);
-  }
-  ctx.font = `${size}px BlackOps, Impact, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 14 * u;
-  ctx.strokeStyle = '#0a0302';
-  ctx.strokeText(a.text, 0, 0);
-  const g = ctx.createLinearGradient(0, -size / 2, 0, size / 2);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.45, a.color);
-  g.addColorStop(1, shadeDark(a.color));
-  ctx.fillStyle = g;
-  ctx.fillText(a.text, 0, 0);
+  const cy = ch * (big ? 0.4 : 0.3);
+  drawText(ctx, a.text, cw / 2 + jitter, cy + jitter, size,
+    { font: 'Display', fill: '#f4ead8', fill2: a.color, stroke: '#070302', strokeW: size * 0.07, erosion: 0.45, drips: !big && a.color !== '#ffffff' },
+    sc, -0.02);
   if (a.sub) {
-    ctx.font = `${40 * u}px Bebas, Impact, sans-serif`;
-    ctx.lineWidth = 6 * u;
-    ctx.strokeText(a.sub, 0, size * 0.78);
-    ctx.fillStyle = '#f2e6d0';
-    ctx.fillText(a.sub, 0, size * 0.78);
+    drawText(ctx, a.sub, cw / 2, cy + size * 0.95, 44 * u,
+      { font: 'Cond', weight: 700, fill: '#e8dcc6', stroke: '#070302', strokeW: 6 * u, erosion: 0.15, tracking: 3 * u });
   }
-  ctx.restore();
-}
-
-function shadeDark(c) {
-  if (c[0] !== '#' || c.length !== 7) return '#401008';
-  const n = parseInt(c.slice(1), 16);
-  const r = ((n >> 16) & 255) * 0.35, g = ((n >> 8) & 255) * 0.35, b = (n & 255) * 0.35;
-  return `rgb(${r | 0},${g | 0},${b | 0})`;
+  ctx.globalAlpha = 1;
 }

@@ -1,276 +1,229 @@
-// Crisp overlay: scoreboard, minimap, off-screen indicators, control hints, menus & results.
-import { FIELD_W as W, FIELD_H as H, CX, CY, GOAL_HALF, TEAMS, DIFFICULTIES } from '../game/constants.js';
+// Crisp overlay: side-panel scoreboard, vertical minimap, off-screen indicators, hints, menus & results.
+import { FIELD_W as W, FIELD_H as H, CX, CY, GOAL_HALF } from '../game/constants.js';
+import { MULTS } from '../game/match.js';
 import { TAU, clamp, easeOutCubic } from '../core/math.js';
+import { drawText } from '../render/text.js';
+import { t } from '../core/i18n.js';
 
-const MULTS = ['', 'x1.5', 'x2'];
+const INK = '#070302';
+const BONE = '#e8dcc6';
+const DUST = '#a8957c';
+const BLOOD = '#b3200f';
 
-function plate(ctx, x, y, w, h, u, fill = '#1c1512') {
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, '#4a3a30'); g.addColorStop(0.08, fill); g.addColorStop(1, '#0c0807');
+function panel(ctx, x, y, w, h, u, alpha = 0.78) {
+  ctx.fillStyle = `rgba(12,8,6,${alpha})`;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = 'rgba(90,70,55,0.5)';
+  ctx.fillRect(x, y, w, 2 * u);
+  ctx.fillRect(x, y + h - 2 * u, w, 2 * u);
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.beginPath();
-  ctx.moveTo(x + 14 * u + 6 * u, y + 6 * u); ctx.lineTo(x + w - 14 * u + 6 * u, y + 6 * u); ctx.lineTo(x + w + 6 * u, y + h / 2 + 6 * u);
-  ctx.lineTo(x + w - 14 * u + 6 * u, y + h + 6 * u); ctx.lineTo(x + 14 * u + 6 * u, y + h + 6 * u); ctx.lineTo(x + 6 * u, y + h / 2 + 6 * u); ctx.fill();
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.moveTo(x + 14 * u, y); ctx.lineTo(x + w - 14 * u, y); ctx.lineTo(x + w, y + h / 2);
-  ctx.lineTo(x + w - 14 * u, y + h); ctx.lineTo(x + 14 * u, y + h); ctx.lineTo(x, y + h / 2); ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = '#7a6452'; ctx.lineWidth = 2 * u; ctx.stroke();
-  for (const [rx, ry] of [[x + 20 * u, y + 8 * u], [x + w - 20 * u, y + 8 * u], [x + 20 * u, y + h - 8 * u], [x + w - 20 * u, y + h - 8 * u]]) {
-    ctx.fillStyle = '#0a0706'; ctx.beginPath(); ctx.arc(rx, ry, 3 * u, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#a08a74'; ctx.beginPath(); ctx.arc(rx - 0.8 * u, ry - 0.8 * u, 1.3 * u, 0, TAU); ctx.fill();
+  for (const [rx, ry] of [[x + 8 * u, y + 8 * u], [x + w - 8 * u, y + 8 * u], [x + 8 * u, y + h - 8 * u], [x + w - 8 * u, y + h - 8 * u]]) {
+    ctx.beginPath(); ctx.arc(rx, ry, 2.5 * u, 0, TAU); ctx.fill();
   }
 }
 
-function text(ctx, str, x, y, size, color, font = 'Bebas', align = 'center', stroke = 5) {
-  ctx.font = `${size}px ${font}, Impact, sans-serif`;
-  ctx.textAlign = align;
-  ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  if (stroke) { ctx.lineWidth = stroke; ctx.strokeStyle = '#0a0504'; ctx.strokeText(str, x, y); }
-  ctx.fillStyle = color;
-  ctx.fillText(str, x, y);
-}
+const cond = (fill, u, extra = {}) => ({ font: 'Cond', weight: 700, fill, stroke: INK, strokeW: 4 * u, erosion: 0, ...extra });
 
-export function drawHUD(ctx, match, cam, cw, ch, time) {
+export function drawHUD(ctx, match, cam, cw, ch, time, showHints) {
   const u = ch / 1080;
-  const [A, B] = match.teams;
-  // Left team on screen is whichever defends the left goal.
-  const left = A.dir > 0 ? A : B, right = left === A ? B : A;
+  const s = cw / cam.viewW;
+  const fieldL = (0 - cam.view.x0) * s, fieldR = (W - cam.view.x0) * s;
+  const pw = clamp(fieldL - 24 * u, 270 * u, 300 * u);
 
-  // ---- Scoreboard ----
-  const sw = 760 * u, sh = 96 * u, sx = cw / 2 - sw / 2, sy = 18 * u;
-  plate(ctx, sx, sy, sw, sh, u);
+  // ---- Left panel: clock + scores ----
+  const px = 16 * u, py = 16 * u;
+  panel(ctx, px, py, pw, 250 * u, u);
   const clock = Math.max(0, match.clock);
   const mm = Math.floor(clock / 60), ss = Math.floor(clock % 60);
   const low = clock < 10.5 && match.phase === 'play';
-  const clockCol = low ? (Math.sin(time * 12) > 0 ? '#ff3a1a' : '#ffd36a') : '#f2e6d0';
-  text(ctx, `${mm}:${String(ss).padStart(2, '0')}`, cw / 2, sy + sh * 0.44, 62 * u, clockCol, 'Bebas', 'center', 6 * u);
-  text(ctx, match.half === 3 ? 'MORT SUBITE' : `MI-TEMPS ${match.half}`, cw / 2, sy + sh * 0.84, 20 * u, '#b8a48c', 'Bebas', 'center', 3 * u);
-  for (const [t, side] of [[left, -1], [right, 1]]) {
-    const def = t.def;
-    const cx = cw / 2 + side * 230 * u;
-    // Team colour bar
-    ctx.fillStyle = def.armor;
-    ctx.fillRect(cx - 130 * u, sy + 10 * u, 260 * u, 6 * u);
-    text(ctx, def.name, cx + side * 20 * u, sy + 38 * u, 30 * u, def.armorLight, 'Bebas', 'center', 4 * u);
-    const pop = t.scorePop ? Math.max(0, t.scorePop) : 0;
-    text(ctx, String(t.score), cx - side * 110 * u, sy + sh * 0.5, (70 + pop * 30) * u, '#ffffff', 'BlackOps', 'center', 7 * u);
-    if (t.lastScore !== t.score) { t.scorePop = 1; t.lastScore = t.score; }
-    t.scorePop = Math.max(0, (t.scorePop || 0) - 0.05);
-    // Multiplier + effects
-    let bx = cx + side * 20 * u - 60 * u;
-    if (t.mult > 0) {
-      ctx.fillStyle = def.glow;
-      ctx.fillRect(bx, sy + 58 * u, 50 * u, 24 * u);
-      text(ctx, MULTS[t.mult], bx + 25 * u, sy + 71 * u, 24 * u, '#140906', 'Bebas', 'center', 0);
-      bx += 58 * u;
-    }
-    if (t.rageT > 0) { ctx.fillStyle = '#e02a10'; ctx.fillRect(bx, sy + 58 * u, 64 * u, 24 * u); text(ctx, 'RAGE', bx + 32 * u, sy + 71 * u, 22 * u, '#fff', 'Bebas', 'center', 0); bx += 72 * u; }
-    if (t.freezeT > 0) { ctx.fillStyle = '#7ec8ee'; ctx.fillRect(bx, sy + 58 * u, 70 * u, 24 * u); text(ctx, 'ENTRAVE', bx + 35 * u, sy + 71 * u, 22 * u, '#08141a', 'Bebas', 'center', 0); }
+  const clockCol = low && Math.sin(time * 12) > 0 ? '#e8321a' : BONE;
+  drawText(ctx, `${mm}:${String(ss).padStart(2, '0')}`, px + pw / 2, py + 52 * u, 72 * u, { font: 'Display', fill: clockCol, stroke: INK, strokeW: 6 * u, erosion: 0 });
+  drawText(ctx, match.half === 3 ? t('suddenDeath') : t('half', match.half), px + pw / 2, py + 100 * u, 24 * u, cond(DUST, u, { tracking: 3 * u }));
+  match.teams.forEach((tm, i) => {
+    const y = py + (140 + i * 58) * u;
+    ctx.fillStyle = tm.def.mark;
+    ctx.fillRect(px + 14 * u, y - 22 * u, 6 * u, 44 * u);
+    if (tm.lastScore !== tm.score) { tm.scorePop = 1; tm.lastScore = tm.score; }
+    tm.scorePop = Math.max(0, (tm.scorePop || 0) - 0.04);
+    // Score in a fixed column on the left, name + status on the right.
+    drawText(ctx, String(tm.score), px + 62 * u, y, (50 + tm.scorePop * 22) * u, { font: 'Display', fill: '#f4ead8', stroke: INK, strokeW: 5 * u, erosion: 0 });
+    drawText(ctx, tm.def.name, px + 108 * u, y - 7 * u, 24 * u, cond(tm.def.ui, u), 1, 0, 'left');
+    const tags = [];
+    if (tm.mult > 0) tags.push(`x${MULTS[tm.mult]}`);
+    if (tm.rageT > 0) tags.push(t('rage'));
+    if (tm.freezeT > 0) tags.push(t('fettered'));
+    if (tags.length) drawText(ctx, tags.join('  '), px + 108 * u, y + 16 * u, 20 * u, cond(i === 0 ? '#e0a060' : '#a8d8e8', u, { strokeW: 3 * u }), 1, 0, 'left');
+  });
+  // Which way am I attacking?
+  const h0 = match.humans[0];
+  if (h0 && match.phase !== 'fulltime') {
+    const up = h0.team.dir < 0;
+    const ax = px + pw / 2, ay = py + 250 * u + 26 * u;
+    ctx.fillStyle = h0.team.def.mark;
+    ctx.beginPath();
+    if (up) { ctx.moveTo(ax, ay - 12 * u); ctx.lineTo(ax + 12 * u, ay + 6 * u); ctx.lineTo(ax - 12 * u, ay + 6 * u); } else { ctx.moveTo(ax, ay + 12 * u); ctx.lineTo(ax + 12 * u, ay - 6 * u); ctx.lineTo(ax - 12 * u, ay - 6 * u); }
+    ctx.fill();
   }
 
-  drawMinimap(ctx, match, cam, cw, ch, u, left);
-  drawOffscreen(ctx, match, cam, cw, ch, u, time);
+  drawMinimap(ctx, match, cam, cw, ch, u, fieldR);
+  drawOffscreen(ctx, match, cam, cw, ch, u);
 
-  if (!match.demo && match.half === 1 && match.clock > match.halfLength - 12 && match.phase === 'play') {
-    const a = clamp((match.clock - (match.halfLength - 12)) / 2, 0, 1);
+  if (showHints && !match.demo && match.half === 1 && match.phase === 'play' && match.clock > match.halfLength - 8) {
+    const a = clamp((match.clock - (match.halfLength - 8)) / 1.5, 0, 1);
+    const lines = match.humans.length === 1 && match.humans[0].device.kind === 'merge' ? t('hintSolo') : t('hintMulti');
+    const lh = 30 * u, bh = lines.length * lh + 20 * u;
     ctx.globalAlpha = a;
-    const lines = controlsHint(match);
-    lines.forEach((l, i) => text(ctx, l, 28 * u, ch - (30 + (lines.length - 1 - i) * 30) * u, 26 * u, '#e8dccb', 'Bebas', 'left', 4 * u));
+    ctx.fillStyle = 'rgba(8,5,4,0.8)';
+    ctx.fillRect(cw / 2 - 470 * u, ch - bh - 16 * u, 940 * u, bh);
+    lines.forEach((l, i) => drawText(ctx, l, cw / 2, ch - bh - 16 * u + 10 * u + lh * (i + 0.5), 23 * u, cond(BONE, u, { strokeW: 3 * u })));
     ctx.globalAlpha = 1;
   }
 }
 
-function controlsHint(match) {
-  const hs = match.humans;
-  if (hs.length === 1 && hs[0].device.kind === 'merge') {
-    return ['DÉPLACER : ZQSD / WASD / FLÈCHES', 'ESPACE / J : PASSE-TIR (MAINTENIR = PUISSANCE)  •  SANS BALLE : TACLE', 'K / SHIFT : LOB  •  SANS BALLE : SAUT      L / TAB : CHANGER DE JOUEUR'];
-  }
-  return ['MANETTE : A = PASSE-TIR / TACLE   B = LOB / SAUT   LB-RB = CHANGER',
-    'J1 CLAVIER : ZQSD + ESPACE / SHIFT / TAB   —   J2 CLAVIER : FLÈCHES + PAVÉ 0 / . / ENTRÉE'];
-}
-
-function drawMinimap(ctx, match, cam, cw, ch, u, left) {
-  const mw = 300 * u, mh = mw * (H / W);
-  const mx = cw / 2 - mw / 2, my = ch - mh - 20 * u;
-  ctx.fillStyle = 'rgba(10,6,4,0.62)';
-  ctx.fillRect(mx - 6 * u, my - 6 * u, mw + 12 * u, mh + 12 * u);
-  ctx.strokeStyle = 'rgba(160,130,100,0.6)'; ctx.lineWidth = 1.5 * u;
+function drawMinimap(ctx, match, cam, cw, ch, u, fieldR) {
+  const mh = 330 * u, mw = mh * (W / H);
+  const mx = cw - mw - 28 * u, my = 28 * u;
+  panel(ctx, mx - 12 * u, my - 12 * u, mw + 24 * u, mh + 24 * u, u, 0.72);
+  ctx.strokeStyle = 'rgba(170,140,110,0.5)'; ctx.lineWidth = 1.5 * u;
   ctx.strokeRect(mx, my, mw, mh);
-  ctx.beginPath(); ctx.moveTo(mx + mw / 2, my); ctx.lineTo(mx + mw / 2, my + mh); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mx, my + mh / 2); ctx.lineTo(mx + mw, my + mh / 2); ctx.stroke();
   const sx = (x) => mx + (x / W) * mw, sy = (y) => my + (y / H) * mh;
-  // goals
-  for (const t of match.teams) {
-    const gx = match.ownGoalX(t);
-    ctx.fillStyle = t.def.glow;
-    ctx.fillRect(sx(gx) - 3 * u, sy(CY - GOAL_HALF), 6 * u, (GOAL_HALF * 2 / H) * mh);
+  for (const tm of match.teams) {
+    const gy = match.ownGoalY(tm);
+    ctx.fillStyle = tm.def.mark;
+    ctx.fillRect(sx(CX - GOAL_HALF), sy(gy) - 2.5 * u, (GOAL_HALF * 2 / W) * mw, 5 * u);
   }
-  // camera frame
   const v = cam.view;
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.strokeRect(sx(clamp(v.x0, 0, W)), sy(clamp(v.y0, 0, H)), (Math.min(W, v.x1) - Math.max(0, v.x0)) / W * mw, (Math.min(H, v.y1) - Math.max(0, v.y0)) / H * mh);
+  ctx.strokeStyle = 'rgba(255,240,220,0.25)';
+  const y0 = clamp(v.y0, 0, H), y1 = clamp(v.y1, 0, H);
+  ctx.strokeRect(mx + 1, sy(y0), mw - 2, sy(y1) - sy(y0));
   for (const p of match.players) {
-    ctx.fillStyle = p.grounded ? 'rgba(120,120,120,0.8)' : p.team.def.armorLight;
-    const r = (p.human ? 5 : 3.5) * u;
+    ctx.fillStyle = p.grounded ? 'rgba(110,100,95,0.8)' : p.team.def.mark;
+    const r = (p.human ? 4.5 : 3.2) * u;
     ctx.beginPath(); ctx.arc(sx(p.x), sy(p.y), r, 0, TAU); ctx.fill();
     if (p.human) { ctx.strokeStyle = p.human.color; ctx.lineWidth = 2 * u; ctx.stroke(); }
   }
   const b = match.ball;
-  ctx.fillStyle = b.electric > 0 ? '#7ff6ff' : '#ffffff';
-  ctx.beginPath(); ctx.arc(sx(b.x), sy(b.y), 3.5 * u, 0, TAU); ctx.fill();
+  ctx.fillStyle = b.electric > 0 ? '#9fe8ff' : '#ffffff';
+  ctx.beginPath(); ctx.arc(sx(b.x), sy(b.y), 3.2 * u, 0, TAU); ctx.fill();
 }
 
-function drawOffscreen(ctx, match, cam, cw, ch, u, time) {
+function drawOffscreen(ctx, match, cam, cw, ch, u) {
   const v = cam.view;
   const s = cw / cam.viewW;
   for (const h of match.humans) {
     const p = h.player;
     if (!p) continue;
-    const px = (p.x - v.x0) * s, py = (p.y - 40 - v.y0) * s;
+    const px = (p.x - v.x0) * s, py = (p.y - 50 - v.y0) * s;
     if (px > 0 && px < cw && py > 0 && py < ch) continue;
-    const cx = clamp(px, 40 * u, cw - 40 * u), cy = clamp(py, 140 * u, ch - 40 * u);
+    const cx = clamp(px, 40 * u, cw - 40 * u), cy = clamp(py, 40 * u, ch - 40 * u);
     const a = Math.atan2(py - cy, px - cx);
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(a);
+    ctx.fillStyle = INK;
+    ctx.beginPath(); ctx.moveTo(26 * u, 0); ctx.lineTo(-12 * u, -17 * u); ctx.lineTo(-12 * u, 17 * u); ctx.fill();
     ctx.fillStyle = h.color;
-    ctx.beginPath(); ctx.moveTo(22 * u, 0); ctx.lineTo(-10 * u, -14 * u); ctx.lineTo(-10 * u, 14 * u); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(20 * u, 0); ctx.lineTo(-8 * u, -12 * u); ctx.lineTo(-8 * u, 12 * u); ctx.fill();
     ctx.restore();
   }
 }
 
 // ---------------- Menus ----------------
 
-export function drawLogo(ctx, cw, ch, time, y = 0.26, scale = 1) {
-  const u = ch / 1080 * scale;
+export function drawLogo(ctx, cw, ch, time, y = 0.27, scale = 1) {
+  const u = (ch / 1080) * scale;
   const cx = cw / 2, cy = ch * y;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-0.04);
-  const size = 170 * u;
-  ctx.font = `${size}px BlackOps, Impact, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  // Fire glow behind
-  const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, 700 * u);
-  glow.addColorStop(0, `rgba(255,110,30,${0.35 + Math.sin(time * 3) * 0.05})`);
-  glow.addColorStop(1, 'rgba(255,60,10,0)');
+  const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, 650 * u);
+  glow.addColorStop(0, `rgba(200,60,15,${0.28 + Math.sin(time * 3) * 0.04})`);
+  glow.addColorStop(1, 'rgba(120,20,5,0)');
   ctx.fillStyle = glow;
-  ctx.fillRect(-900 * u, -300 * u, 1800 * u, 600 * u);
-  for (const [str, dy, sz] of [['STEEL', -70, 1], ['CARNAGE', 80, 1.12]]) {
-    ctx.font = `${size * sz}px BlackOps, Impact, sans-serif`;
-    ctx.lineWidth = 22 * u;
-    ctx.strokeStyle = '#0a0302';
-    ctx.strokeText(str, 0, dy * u);
-    const g = ctx.createLinearGradient(0, dy * u - size * 0.45, 0, dy * u + size * 0.45);
-    if (str === 'STEEL') {
-      g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, '#b9c0c6'); g.addColorStop(0.55, '#5c646b'); g.addColorStop(1, '#c9d0d6');
-    } else {
-      g.addColorStop(0, '#ffe7a0'); g.addColorStop(0.4, '#ff8a1f'); g.addColorStop(0.7, '#c2260c'); g.addColorStop(1, '#5a0c04');
-    }
-    ctx.fillStyle = g;
-    ctx.fillText(str, 0, dy * u);
-  }
-  // Scratches
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  ctx.lineWidth = 2 * u;
-  for (let i = 0; i < 14; i++) {
-    const x = ((i * 137) % 900 - 450) * u, yy = ((i * 71) % 260 - 130) * u;
-    ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + 60 * u, yy + 12 * u); ctx.stroke();
-  }
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.restore();
+  ctx.fillRect(cx - 900 * u, cy - 400 * u, 1800 * u, 800 * u);
+  drawText(ctx, 'STEEL', cx, cy - 90 * u, 170 * u, { font: 'Display', fill: '#d8d2c8', fill2: '#5a5550', stroke: INK, strokeW: 12 * u, erosion: 0.5, tracking: 14 * u }, 1, -0.02);
+  drawText(ctx, 'CARNAGE', cx, cy + 80 * u, 210 * u, { font: 'Display', fill: '#e05a20', fill2: '#5a0c04', stroke: INK, strokeW: 14 * u, erosion: 0.5, drips: true, dripColor: '#6a0804', tracking: 6 * u }, 1, -0.02);
 }
 
 export function drawTitle(ctx, cw, ch, time) {
   const u = ch / 1080;
-  ctx.fillStyle = 'rgba(8,4,3,0.35)';
+  ctx.fillStyle = 'rgba(6,3,2,0.45)';
   ctx.fillRect(0, 0, cw, ch);
   drawLogo(ctx, cw, ch, time);
-  text(ctx, 'LE SPORT LE PLUS BRUTAL DES TERRES DÉSOLÉES', cw / 2, ch * 0.45, 40 * u, '#e7d6bd', 'Bebas', 'center', 5 * u);
-  if (Math.sin(time * 4) > -0.3) text(ctx, 'APPUIE SUR ENTRÉE / START', cw / 2, ch * 0.72, 56 * u, '#ffd36a', 'BlackOps', 'center', 7 * u);
-  text(ctx, 'F11 : PLEIN ÉCRAN   •   M : MUSIQUE', cw / 2, ch * 0.95, 24 * u, '#8f7c68', 'Bebas', 'center', 3 * u);
+  drawText(ctx, t('tagline'), cw / 2, ch * 0.5, 36 * u, cond(DUST, u, { tracking: 6 * u, strokeW: 5 * u }));
+  if (Math.sin(time * 4) > -0.4) drawText(ctx, t('pressStart'), cw / 2, ch * 0.74, 54 * u, { font: 'Display', fill: BONE, stroke: INK, strokeW: 6 * u, erosion: 0.3, tracking: 4 * u });
+  drawText(ctx, t('titleHelp'), cw / 2, ch * 0.95, 24 * u, cond('#7d6c5a', u, { strokeW: 3 * u }));
 }
 
 export function drawMenu(ctx, cw, ch, time, menu) {
   const u = ch / 1080;
-  ctx.fillStyle = 'rgba(8,4,3,0.55)';
+  ctx.fillStyle = 'rgba(6,3,2,0.62)';
   ctx.fillRect(0, 0, cw, ch);
-  drawLogo(ctx, cw, ch, time, 0.17, 0.62);
-  const items = menu.items;
+  drawLogo(ctx, cw, ch, time, 0.16, 0.55);
   const top = ch * 0.36;
-  const rowH = 74 * u;
-  items.forEach((it, i) => {
+  const rowH = 66 * u;
+  const w = 880 * u, x = cw / 2 - w / 2;
+  menu.items.forEach((it, i) => {
     const y = top + i * rowH;
     const sel = i === menu.index;
-    const w = 860 * u, x = cw / 2 - w / 2;
     if (sel) {
-      const pulse = 0.6 + Math.sin(time * 8) * 0.2;
-      ctx.fillStyle = `rgba(200,70,20,${0.35 * pulse + 0.2})`;
-      ctx.beginPath();
-      ctx.moveTo(x, y - rowH * 0.42); ctx.lineTo(x + w, y - rowH * 0.42); ctx.lineTo(x + w - 20 * u, y + rowH * 0.42); ctx.lineTo(x - 20 * u, y + rowH * 0.42); ctx.fill();
-      ctx.fillStyle = '#ff7a1a';
-      ctx.fillRect(x - 20 * u, y - rowH * 0.42, 8 * u, rowH * 0.84);
+      ctx.fillStyle = 'rgba(140,20,8,0.55)';
+      ctx.fillRect(x - 10 * u, y - rowH * 0.42, w + 20 * u, rowH * 0.84);
+      ctx.fillStyle = BLOOD;
+      ctx.fillRect(x - 10 * u, y - rowH * 0.42, 6 * u, rowH * 0.84);
     }
-    const col = it.disabled ? '#6a5a4c' : sel ? '#ffffff' : '#cbb89f';
+    const col = it.disabled ? '#5a4c40' : sel ? '#ffffff' : '#c4b29a';
     if (it.value !== undefined) {
-      text(ctx, it.label, x + 30 * u, y, 42 * u, col, 'Bebas', 'left', 5 * u);
-      const v = it.value;
-      text(ctx, sel ? `◄  ${v}  ►` : v, x + w - 30 * u, y, 42 * u, sel ? '#ffd36a' : '#e8dccb', 'Bebas', 'right', 5 * u);
+      drawText(ctx, it.label, x + 20 * u, y, 38 * u, cond(col, u, { tracking: 2 * u }), 1, 0, 'left');
+      drawText(ctx, sel ? `‹  ${it.value}  ›` : it.value, x + w - 20 * u, y, 38 * u, cond(sel ? '#f0c070' : BONE, u, { tracking: 2 * u }), 1, 0, 'right');
+    } else if (it.big) {
+      drawText(ctx, it.label, cw / 2, y, 52 * u, { font: 'Display', fill: sel ? '#ffffff' : '#d8c8b0', stroke: INK, strokeW: 6 * u, erosion: 0.25, tracking: 4 * u });
     } else {
-      text(ctx, it.label, cw / 2, y, (it.big ? 56 : 44) * u, it.big && sel ? '#ffd36a' : col, it.big ? 'BlackOps' : 'Bebas', 'center', 6 * u);
+      drawText(ctx, it.label, cw / 2, y, 38 * u, cond(col, u, { tracking: 2 * u }));
     }
   });
-  if (menu.help) text(ctx, menu.help, cw / 2, ch * 0.93, 26 * u, '#a8927a', 'Bebas', 'center', 3 * u);
+  if (menu.help) drawText(ctx, menu.help, cw / 2, ch * 0.94, 24 * u, cond('#8a7864', u, { strokeW: 3 * u }));
 }
 
 export function drawPause(ctx, cw, ch, time, menu) {
   const u = ch / 1080;
-  ctx.fillStyle = 'rgba(6,3,2,0.62)';
+  ctx.fillStyle = 'rgba(5,2,1,0.6)';
   ctx.fillRect(0, 0, cw, ch);
-  text(ctx, 'PAUSE', cw / 2, ch * 0.3, 140 * u, '#ffd36a', 'BlackOps', 'center', 12 * u);
+  drawText(ctx, t('pause'), cw / 2, ch * 0.3, 150 * u, { font: 'Display', fill: BONE, fill2: '#7a6a58', stroke: INK, strokeW: 10 * u, erosion: 0.45, tracking: 10 * u });
   menu.items.forEach((it, i) => {
     const sel = i === menu.index;
-    text(ctx, sel ? `►  ${it.label}  ◄` : it.label, cw / 2, ch * 0.48 + i * 70 * u, 50 * u, sel ? '#ffffff' : '#bba68c', 'Bebas', 'center', 6 * u);
+    drawText(ctx, sel ? `›  ${it.label}  ‹` : it.label, cw / 2, ch * 0.5 + i * 68 * u, 46 * u, cond(sel ? '#ffffff' : '#b09c84', u, { tracking: 3 * u, strokeW: 5 * u }));
   });
 }
 
-export function drawResults(ctx, cw, ch, time, match, menu, t) {
+export function drawResults(ctx, cw, ch, time, match, menu, st) {
   const u = ch / 1080;
-  const k = easeOutCubic(clamp(t / 0.6, 0, 1));
-  ctx.fillStyle = `rgba(6,3,2,${0.7 * k})`;
+  const k = easeOutCubic(clamp(st / 0.6, 0, 1));
+  ctx.fillStyle = `rgba(5,2,1,${0.75 * k})`;
   ctx.fillRect(0, 0, cw, ch);
   ctx.save();
-  ctx.translate(0, (1 - k) * 60 * u);
   ctx.globalAlpha = k;
+  ctx.translate(0, (1 - k) * 50 * u);
   const w = match.winner;
-  text(ctx, w ? 'VICTOIRE' : 'MATCH NUL', cw / 2, ch * 0.14, 130 * u, w ? w.def.glow : '#e8dccb', 'BlackOps', 'center', 12 * u);
-  if (w) text(ctx, w.def.name, cw / 2, ch * 0.24, 54 * u, '#ffffff', 'Bebas', 'center', 6 * u);
+  drawText(ctx, w ? t('victory') : t('draw'), cw / 2, ch * 0.13, 150 * u,
+    { font: 'Display', fill: '#f4ead8', fill2: w ? w.def.mark : '#8a7a68', stroke: INK, strokeW: 12 * u, erosion: 0.45, drips: true, tracking: 10 * u });
+  if (w) drawText(ctx, w.def.name, cw / 2, ch * 0.25, 48 * u, cond(BONE, u, { tracking: 8 * u, strokeW: 5 * u }));
   const [A, B] = match.teams;
-  const colW = 380 * u;
-  text(ctx, `${A.score}`, cw / 2 - colW, ch * 0.36, 120 * u, A.def.armorLight, 'BlackOps', 'center', 10 * u);
-  text(ctx, `${B.score}`, cw / 2 + colW, ch * 0.36, 120 * u, B.def.armorLight, 'BlackOps', 'center', 10 * u);
-  text(ctx, A.def.name, cw / 2 - colW, ch * 0.45, 40 * u, '#e8dccb', 'Bebas', 'center', 5 * u);
-  text(ctx, B.def.name, cw / 2 + colW, ch * 0.45, 40 * u, '#e8dccb', 'Bebas', 'center', 5 * u);
-  text(ctx, '—', cw / 2, ch * 0.36, 90 * u, '#8a7560', 'BlackOps', 'center', 8 * u);
-  const rows = [
-    ['BUTS', 'goals'], ['K.O. INFLIGÉS', 'kos'], ['TACLES', 'tackles'], ['TIRS', 'shots'], ['ÉTOILES ALLUMÉES', 'starsLit'], ['CRÉDITS RAMASSÉS', 'credits'],
-  ];
+  const colW = 360 * u;
+  drawText(ctx, String(A.score), cw / 2 - colW, ch * 0.37, 130 * u, { font: 'Display', fill: '#f4ead8', fill2: A.def.mark, stroke: INK, strokeW: 10 * u, erosion: 0.2 });
+  drawText(ctx, String(B.score), cw / 2 + colW, ch * 0.37, 130 * u, { font: 'Display', fill: '#f4ead8', fill2: B.def.mark, stroke: INK, strokeW: 10 * u, erosion: 0.2 });
+  drawText(ctx, A.def.name, cw / 2 - colW, ch * 0.46, 34 * u, cond(A.def.ui, u, { tracking: 4 * u }));
+  drawText(ctx, B.def.name, cw / 2 + colW, ch * 0.46, 34 * u, cond(B.def.ui, u, { tracking: 4 * u }));
+  const rows = [['statGoals', 'goals'], ['statKos', 'kos'], ['statTackles', 'tackles'], ['statShots', 'shots'], ['statStars', 'starsLit'], ['statCredits', 'credits']];
   rows.forEach(([label, key], i) => {
-    const y = ch * 0.53 + i * 44 * u;
-    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)';
+    const y = ch * 0.54 + i * 44 * u;
+    ctx.fillStyle = i % 2 ? 'rgba(255,240,220,0.03)' : 'rgba(255,240,220,0.07)';
     ctx.fillRect(cw / 2 - colW - 120 * u, y - 20 * u, (colW + 120 * u) * 2, 40 * u);
-    text(ctx, label, cw / 2, y, 32 * u, '#b8a48c', 'Bebas', 'center', 3 * u);
-    text(ctx, String(A[key]), cw / 2 - colW, y, 36 * u, '#ffffff', 'Bebas', 'center', 4 * u);
-    text(ctx, String(B[key]), cw / 2 + colW, y, 36 * u, '#ffffff', 'Bebas', 'center', 4 * u);
+    drawText(ctx, t(label), cw / 2, y, 28 * u, cond(DUST, u, { tracking: 3 * u, strokeW: 3 * u }));
+    drawText(ctx, String(A[key]), cw / 2 - colW, y, 34 * u, cond('#ffffff', u));
+    drawText(ctx, String(B[key]), cw / 2 + colW, y, 34 * u, cond('#ffffff', u));
   });
   menu.items.forEach((it, i) => {
     const sel = i === menu.index;
-    text(ctx, sel ? `►  ${it.label}  ◄` : it.label, cw / 2 + (i - 0.5) * 420 * u, ch * 0.9, 50 * u, sel ? '#ffd36a' : '#bba68c', 'Bebas', 'center', 6 * u);
+    drawText(ctx, sel ? `›  ${it.label}  ‹` : it.label, cw / 2 + (i - 0.5) * 420 * u, ch * 0.91, 46 * u, cond(sel ? '#f0c070' : '#b09c84', u, { tracking: 3 * u, strokeW: 5 * u }));
   });
   ctx.restore();
 }

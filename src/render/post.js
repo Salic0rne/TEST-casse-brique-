@@ -106,6 +106,9 @@ export class Post {
     this.gl = gl;
     this.ok = !!gl;
     if (!gl) return;
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    this.renderer = String(dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    this.software = /swiftshader|llvmpipe|softpipe|software/i.test(this.renderer);
     this.progBright = this.program(VS, BRIGHT);
     this.progBlur = this.program(VS, BLUR);
     this.progComp = this.program(VS, COMPOSITE);
@@ -190,13 +193,8 @@ export class Post {
     gl.uniform1i(loc, unit);
   }
 
-  render(source, params) {
+  bloomPasses(params) {
     const gl = this.gl;
-    gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
-
-    // Bright pass → 1/4, blur; then 1/8 wider blur.
     this.pass(this.progBright, this.b4a, (u) => {
       this.bind(0, this.sceneTex, u.uTex);
       gl.uniform1f(u.uThreshold, params.threshold ?? 0.62);
@@ -211,6 +209,16 @@ export class Post {
     blur(this.b8a, this.b8b, 0, 1.5);
     blur(this.b8b, this.b8a, 2.5, 0);
     blur(this.b8a, this.b8b, 0, 2.5);
+  }
+
+  render(source, params) {
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+
+    // Bright pass → 1/4, blur; then 1/8 wider blur (skipped when bloom is off).
+    if ((params.bloom ?? 1) > 0) this.bloomPasses(params);
 
     this.pass(this.progComp, null, (u) => {
       this.bind(0, this.sceneTex, u.uScene);
@@ -220,7 +228,8 @@ export class Post {
       gl.uniform1f(u.uTime, params.time);
       gl.uniform1f(u.uCA, params.ca);
       gl.uniform4f(u.uFlash, params.flash[0], params.flash[1], params.flash[2], params.flash[3]);
-      const sh = new Float32Array(16);
+      const sh = this.shockBuf || (this.shockBuf = new Float32Array(16));
+      sh.fill(0);
       params.shocks.slice(0, 4).forEach((s, i) => sh.set([s.x, s.y, s.r, s.s], i * 4));
       gl.uniform4fv(u.uShock, sh);
       gl.uniform1f(u.uBloomStrength, params.bloom ?? 1.0);

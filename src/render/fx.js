@@ -36,6 +36,7 @@ class FX {
     this.ca = 0;
     this.shocks = [];
     this.time = 0;
+    this.quality = 1; // particle budget multiplier (performance mode lowers it)
   }
 
   reset() {
@@ -50,6 +51,7 @@ class FX {
   }
 
   add(p) {
+    if (this.quality < 1 && p.type !== 'ring' && p.type !== 'glow' && Math.random() > this.quality) return p;
     if (this.parts.length >= MAX) this.parts.shift();
     p.age = 0;
     p.z ??= 0; p.vz ??= 0; p.vx ??= 0; p.vy ??= 0;
@@ -107,7 +109,7 @@ class FX {
       this.add({
         type: 'blood', x, y, z: z + rand(-8, 8), vx: Math.cos(a) * s + rand(-40, 40), vy: Math.sin(a) * s + rand(-40, 40),
         vz: rand(60, 300), grav: 1100, drag: 1, life: 2, size: rand(2, 5),
-        color: pick(['#8a0d0d', '#a3120f', '#6b0909', '#b51c14']),
+        color: pick(['#6a0806', '#8a0e0a', '#50060a', '#9a1a10']),
       });
     }
   }
@@ -147,6 +149,16 @@ class FX {
       this.add({
         type: 'ember', x: x + rand(-10, 10), y, z: z + rand(0, 20), vx: rand(-40, 40), vy: rand(-20, 20), vz: rand(80, 200),
         drag: 0.6, grav: -20, life: rand(0.8, 1.8), size: rand(1.2, 2.4), color: pick(['#ffb347', '#ff7a1a', '#ffe08a']),
+      });
+    }
+  }
+
+  gore(x, y, z, n = 10) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, TAU), s = rand(120, 420);
+      this.add({
+        type: 'gore', x, y, z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rand(200, 520), grav: 1300, drag: 0.8,
+        life: 2.5, size: rand(2.5, 6), rot: rand(0, TAU), vr: rand(-12, 12), color: pick(['#5a0806', '#7a100a', '#3a0604', '#8a2a1a']),
       });
     }
   }
@@ -222,7 +234,12 @@ class FX {
       if (p.grow) p.size += p.grow * dt;
       if (p.z < 0 && p.grav > 0) {
         if (p.type === 'blood') {
-          if (Math.random() < 0.6) this.decal('blood', p.x, p.y, { r: p.size * rand(0.8, 2.2) });
+          if (Math.random() < 0.7) this.decal('blood', p.x, p.y, { r: p.size * rand(1, 2.6) });
+          continue;
+        }
+        if (p.type === 'gore') {
+          this.decal('blood', p.x, p.y, { r: p.size * 2.2 });
+          this.decal('blood', p.x + p.vx * 0.02, p.y + p.vy * 0.02, { r: p.size * 1.2 });
           continue;
         }
         p.z = 0;
@@ -260,6 +277,15 @@ class FX {
           ctx.beginPath();
           ctx.ellipse(sx, sy, p.size, p.size * 0.8, 0, 0, TAU);
           ctx.fill();
+          break;
+        case 'gore':
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = p.color;
+          ctx.save();
+          ctx.translate(sx, sy);
+          ctx.rotate(p.rot);
+          ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size * 0.6, 0, 0, TAU); ctx.fill();
+          ctx.restore();
           break;
         case 'debris':
           ctx.globalAlpha = 1 - t * t;
@@ -356,11 +382,11 @@ class FX {
       ctx.translate(t.x, t.y - t.z);
       ctx.scale(pop, pop);
       ctx.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
-      ctx.font = `${t.size}px BlackOps, Impact, sans-serif`;
+      ctx.font = `${t.size}px Display, Impact, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = '#120806';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(8,4,3,0.85)';
       ctx.lineJoin = 'round';
       ctx.strokeText(t.str, 0, 0);
       ctx.fillStyle = t.color;

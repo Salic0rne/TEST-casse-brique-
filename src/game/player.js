@@ -1,4 +1,4 @@
-import { PLAYER_R, PLAYER_SPEED, CARRIER_SPEED_MUL, SLIDE_SPEED, SLIDE_TIME, SLIDE_RECOVER, JUMP_VZ, GRAVITY, FIELD_W, FIELD_H, BUMPERS, GOAL_HALF, CY } from './constants.js';
+import { PLAYER_R, PLAYER_SPEED, CARRIER_SPEED_MUL, SLIDE_SPEED, SLIDE_TIME, SLIDE_RECOVER, JUMP_VZ, GRAVITY, FIELD_W, FIELD_H, BUMPERS, GOAL_HALF, CX } from './constants.js';
 import { clamp, dampAngle, rand } from '../core/math.js';
 
 export class Player {
@@ -82,9 +82,9 @@ export class Player {
     if (this.state !== 'run') return false;
     this.setState('dive');
     this.anim.diveDir = dir;
-    // Dive perpendicular to the goal line.
-    this.vy = dir * 560;
-    this.vx *= 0.3;
+    // Dive along the goal line.
+    this.vx = dir * 580;
+    this.vy *= 0.3;
     this.vz = 180;
     return true;
   }
@@ -173,13 +173,13 @@ export class Player {
 
   collideWorld() {
     const r = PLAYER_R;
-    let minX = r, maxX = FIELD_W - r;
-    // Goalkeepers can step into the mouth line
-    if (Math.abs(this.y - CY) < GOAL_HALF - r) { minX = r * 0.6; maxX = FIELD_W - r * 0.6; }
-    if (this.x < minX) { this.x = minX; if (this.vx < 0) this.vx *= -0.3; }
-    if (this.x > maxX) { this.x = maxX; if (this.vx > 0) this.vx *= -0.3; }
-    if (this.y < r) { this.y = r; if (this.vy < 0) this.vy *= -0.3; }
-    if (this.y > FIELD_H - r) { this.y = FIELD_H - r; if (this.vy > 0) this.vy *= -0.3; }
+    let minY = r, maxY = FIELD_H - r;
+    // Goalkeepers can step onto the goal line inside the mouth.
+    if (Math.abs(this.x - CX) < GOAL_HALF - r) { minY = r * 0.6; maxY = FIELD_H - r * 0.6; }
+    if (this.x < r) { this.x = r; if (this.vx < 0) this.vx *= -0.3; }
+    if (this.x > FIELD_W - r) { this.x = FIELD_W - r; if (this.vx > 0) this.vx *= -0.3; }
+    if (this.y < minY) { this.y = minY; if (this.vy < 0) this.vy *= -0.3; }
+    if (this.y > maxY) { this.y = maxY; if (this.vy > 0) this.vy *= -0.3; }
     if (this.z < 45) {
       for (const b of BUMPERS) {
         const dx = this.x - b.x, dy = this.y - b.y;

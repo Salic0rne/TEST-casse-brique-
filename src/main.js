@@ -5,12 +5,13 @@ import { renderScene } from './render/renderer.js';
 import { fx } from './render/fx.js';
 import { Match } from './game/match.js';
 import { Camera } from './game/camera.js';
-import { DIFFICULTIES, HALF_OPTIONS, TEAMS } from './game/constants.js';
+import { HALF_OPTIONS, TEAMS } from './game/constants.js';
 import { audio } from './audio/audio.js';
 import { music } from './audio/music.js';
 import { beginFrame, endFrame, menuInput, keyPressed, connectedPads } from './core/input.js';
 import { drawHUD, drawTitle, drawMenu, drawPause, drawResults } from './ui/hud.js';
-import { makeCanvas } from './core/math.js';
+import { makeCanvas, clamp } from './core/math.js';
+import { t, getLang, setLang, LANGS } from './core/i18n.js';
 
 const wrap = document.getElementById('wrap');
 const glCanvas = document.createElement('canvas');
@@ -23,48 +24,73 @@ let post = null;
 try { post = new Post(glCanvas); if (!post.ok) post = null; } catch (e) { console.warn('WebGL post disabled', e); post = null; }
 const fallbackCtx = post ? null : glCanvas.getContext('2d');
 
-let cw = 1280, ch = 720;
+// ---------- settings (persisted) ----------
+const settings = { mode: 0, team: 0, difficulty: 1, half: 1, music: true, quality: 0 };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('sc.settings') || '{}')); } catch (e) { /* ignore */ }
+function saveSettings() { try { localStorage.setItem('sc.settings', JSON.stringify(settings)); } catch (e) { /* ignore */ } }
+
+// ---------- resolution & dynamic quality ----------
+let cw = 1280, ch = 720; // output (HUD + post) resolution
+let rs = 1; // scene render scale (dynamic resolution)
+const softwareGL = !post || post.software;
+
+function qualityProfile() {
+  // 0 AUTO, 1 MAXIMUM, 2 PERFORMANCE
+  if (settings.quality === 2 || (settings.quality === 0 && softwareGL)) return { maxRs: 0.7, minRs: 0.5, bloom: 0, particles: 0.5, auto: settings.quality === 0 };
+  if (settings.quality === 1) return { maxRs: 1, minRs: 1, bloom: 1, particles: 1, auto: false };
+  return { maxRs: 1, minRs: 0.6, bloom: 1, particles: 1, auto: true };
+}
+let profile = qualityProfile();
+
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = window.innerWidth, h = window.innerHeight;
   wrap.style.width = w + 'px';
   wrap.style.height = h + 'px';
-  // Cap the render resolution around 1080p for a stable framerate.
   let rw = Math.round(w * dpr), rh = Math.round(h * dpr);
   const maxPixels = 1920 * 1080;
   if (rw * rh > maxPixels) { const k = Math.sqrt(maxPixels / (rw * rh)); rw = Math.round(rw * k); rh = Math.round(rh * k); }
   cw = rw; ch = rh;
-  scene.width = cw; scene.height = ch;
   hudCanvas.width = cw; hudCanvas.height = ch;
   if (post) post.resize(cw, ch); else { glCanvas.width = cw; glCanvas.height = ch; }
+  applyRenderScale();
+}
+function applyRenderScale() {
+  const sw = Math.max(320, Math.round(cw * rs)), shh = Math.max(180, Math.round(ch * rs));
+  if (scene.width !== sw || scene.height !== shh) { scene.width = sw; scene.height = shh; }
+}
+function applyQuality() {
+  profile = qualityProfile();
+  rs = profile.maxRs;
+  fx.quality = profile.particles;
+  applyRenderScale();
 }
 window.addEventListener('resize', resize);
 resize();
+applyQuality();
 
-const settings = {
-  mode: 0, // 0 solo, 1 versus, 2 coop, 3 demo
-  team: 0,
-  difficulty: 1,
-  half: 1,
-  music: true,
-};
-const MODES = ['SOLO VS CPU', '2 JOUEURS — VERSUS', '2 JOUEURS — COOP VS CPU', 'DÉMO CPU VS CPU'];
+// Frame-time governor: lower the internal resolution when frames are slow, raise it back when there is headroom.
+const governor = { acc: 0, frames: 0, slow: 0, good: 0 };
+function governResolution(realDt) {
+  if (!profile.auto) return;
+  governor.acc += realDt; governor.frames++;
+  if (governor.acc < 1) return;
+  const fps = governor.frames / governor.acc;
+  governor.acc = 0; governor.frames = 0;
+  if (fps < 54) { governor.slow++; governor.good = 0; } else if (fps > 58) { governor.good++; governor.slow = 0; }
+  if (governor.slow >= 2 && rs > profile.minRs) { rs = Math.max(profile.minRs, rs - 0.1); applyRenderScale(); governor.slow = 0; }
+  if (governor.good >= 6 && rs < profile.maxRs) { rs = Math.min(profile.maxRs, rs + 0.05); applyRenderScale(); governor.good = 0; }
+}
 
+// ---------- app ----------
 const app = {
-  state: 'boot',
-  match: null,
-  camera: new Camera(),
-  menu: null,
-  stateT: 0,
-  time: 0,
-  perf: { update: 0, render: 0 },
-  showPerf: false,
+  state: 'boot', match: null, camera: new Camera(), menu: null, stateT: 0, time: 0,
+  perf: { update: 0, render: 0 }, showPerf: false,
 };
 
 function newDemo() {
   app.match = new Match({ humans: [], difficulty: 2, halfLength: 60, demo: true });
-  app.match.camera = app.camera;
-  app.camera.snap(app.match);
+  app.camera.snap();
   fx.reset();
 }
 
@@ -85,9 +111,7 @@ function startMatch() {
   else if (mode === 2) humans = [{ device: devs[0], team: settings.team }, { device: devs[1], team: settings.team }];
   fx.reset();
   app.match = new Match({ humans, difficulty: settings.difficulty, halfLength: HALF_OPTIONS[settings.half], demo: false });
-  app.match.camera = app.camera;
-  app.match.spectator = mode === 3;
-  app.camera.snap(app.match);
+  app.camera.snap();
   setState('match');
   music.setMode('game');
   audio.play('ui', { kind: 'select' });
@@ -100,16 +124,17 @@ function setState(s) {
 
 function setupMenu() {
   const items = [
-    { label: 'MODE', key: 'mode', value: MODES[settings.mode], options: MODES.length },
-    { label: 'TON ÉQUIPE', key: 'team', value: TEAMS[settings.team].name, options: 2, disabled: settings.mode === 1 || settings.mode === 3 },
-    { label: 'DIFFICULTÉ CPU', key: 'difficulty', value: DIFFICULTIES[settings.difficulty].name, options: 3 },
-    { label: 'DURÉE MI-TEMPS', key: 'half', value: `${HALF_OPTIONS[settings.half]} S`, options: 3 },
-    { label: 'MUSIQUE', key: 'music', value: settings.music ? 'ON' : 'OFF', options: 2 },
-    { label: 'ENTRER DANS L\'ARÈNE', action: 'start', big: true },
-    { label: 'QUITTER', action: 'quit' },
+    { label: t('mode'), key: 'mode', value: t('modes')[settings.mode], options: 4 },
+    { label: t('yourTeam'), key: 'team', value: TEAMS[settings.team].name, options: 2, disabled: settings.mode === 1 || settings.mode === 3 },
+    { label: t('difficulty'), key: 'difficulty', value: t('diffs')[settings.difficulty], options: 3 },
+    { label: t('halfLength'), key: 'half', value: t('seconds', HALF_OPTIONS[settings.half]), options: 3 },
+    { label: t('quality'), key: 'quality', value: t('qualities')[settings.quality], options: 3 },
+    { label: t('music'), key: 'music', value: settings.music ? t('on') : t('off'), options: 2 },
+    { label: t('language'), key: 'lang', value: getLang() === 'fr' ? 'FRANÇAIS' : 'ENGLISH', options: 2 },
+    { label: t('enter'), action: 'start', big: true },
+    { label: t('quit'), action: 'quit' },
   ];
-  const pads = connectedPads().length;
-  const help = `${pads} MANETTE${pads > 1 ? 'S' : ''} DÉTECTÉE${pads > 1 ? 'S' : ''}  •  ↑↓ CHOISIR  ←→ MODIFIER  •  ENTRÉE VALIDER`;
+  const help = t('menuHelp', connectedPads().length);
   const index = app.menu && app.menu.kind === 'setup' ? app.menu.index : items.length - 2;
   app.menu = { kind: 'setup', items, index, help };
 }
@@ -117,7 +142,10 @@ function setupMenu() {
 function applySetting(it, delta) {
   const k = it.key;
   if (k === 'music') { settings.music = !settings.music; audio.setMusicVolume(settings.music ? 0.55 : 0); }
+  else if (k === 'lang') { const i = LANGS.indexOf(getLang()); setLang(LANGS[(i + delta + LANGS.length) % LANGS.length]); }
   else settings[k] = (settings[k] + delta + it.options) % it.options;
+  if (k === 'quality') applyQuality();
+  saveSettings();
   audio.play('ui', { kind: 'move' });
   setupMenu();
 }
@@ -134,10 +162,14 @@ function navigate(menu, inp) {
   if (inp.down) step(1);
 }
 
+function pauseMenu() {
+  return { kind: 'pause', items: [{ label: t('resume'), action: 'resume' }, { label: t('restart'), action: 'restart' }, { label: t('quitMatch'), action: 'quit' }], index: 0 };
+}
+
 function update(realDt) {
   const inp = menuInput();
   if (inp.any) { audio.init(); if (!music.playing) music.start(app.state === 'match' ? 'game' : 'menu'); }
-  if (keyPressed('KeyM')) { settings.music = !settings.music; audio.setMusicVolume(settings.music ? 0.55 : 0); }
+  if (keyPressed('KeyM')) { settings.music = !settings.music; audio.setMusicVolume(settings.music ? 0.55 : 0); saveSettings(); }
   app.stateT += realDt;
   app.time += realDt;
 
@@ -164,16 +196,11 @@ function update(realDt) {
     }
     case 'match': {
       const m = app.match;
-      if (inp.start) {
-        app.menu = { kind: 'pause', items: [{ label: 'REPRENDRE', action: 'resume' }, { label: 'RECOMMENCER', action: 'restart' }, { label: 'QUITTER LE MATCH', action: 'quit' }], index: 0 };
-        setState('paused');
-        audio.play('ui', { kind: 'select' });
-        break;
-      }
+      if (inp.start) { app.menu = pauseMenu(); setState('paused'); audio.play('ui', { kind: 'select' }); break; }
       if (m.phase === 'play' || m.phase === 'kickoff') music.setMode('game');
       stepMatch(realDt);
       if (m.over && m.phaseT > 3.2) {
-        app.menu = { kind: 'results', items: [{ label: 'REVANCHE', action: 'rematch' }, { label: 'MENU', action: 'menu' }], index: 0 };
+        app.menu = { kind: 'results', items: [{ label: t('rematch'), action: 'rematch' }, { label: t('menu'), action: 'menu' }], index: 0 };
         setState('results');
         music.setMode('results');
       }
@@ -187,7 +214,7 @@ function update(realDt) {
         const a = m.items[m.index].action;
         if (a === 'resume') setState('match');
         else if (a === 'restart') startMatch();
-        else { toTitle(); }
+        else toTitle();
       }
       break;
     }
@@ -214,6 +241,7 @@ function toTitle() {
 }
 
 const FIXED = 1 / 120;
+let lastSimDt = 0;
 function stepMatch(realDt) {
   const m = app.match;
   let simDt = realDt * fx.slowmo;
@@ -224,36 +252,35 @@ function stepMatch(realDt) {
     const n = Math.min(8, Math.ceil(simDt / FIXED));
     for (let i = 0; i < n; i++) m.update(simDt / n);
   }
+  lastSimDt = simDt;
   app.camera.update(realDt, m, cw / ch);
 }
 
-function render() {
+function render(realDt) {
   const m = app.match;
   const time = app.time;
-  renderScene(sctx, m, app.camera, cw, ch, time);
-  const shocks = fx.shocks.map((s) => {
-    const v = app.camera.view;
-    return { x: (s.x - v.x0) / app.camera.viewW, y: 1 - (s.y - v.y0) / app.camera.viewH, r: s.t * 0.9, s: s.s * (1 - s.t / 0.9) };
-  });
-  const menuDim = app.state === 'title' || app.state === 'setup' ? 0.78 : 1;
+  renderScene(sctx, m, app.camera, scene.width, scene.height, time, lastSimDt);
+  const v = app.camera.view;
+  const shocks = fx.shocks.map((s) => ({ x: (s.x - v.x0) / app.camera.viewW, y: 1 - (s.y - v.y0) / app.camera.viewH, r: s.t * 0.9, s: s.s * (1 - s.t / 0.9) }));
+  const menuDim = app.state === 'title' || app.state === 'setup' ? 0.75 : 1;
   if (post) {
     post.render(scene, {
       time,
       ca: Math.min(1, fx.ca),
-      flash: [...fx.flashColor, Math.min(0.8, fx.flash)],
+      flash: [...fx.flashColor, Math.min(0.7, fx.flash)],
       shocks,
-      bloom: 1.05,
-      sat: app.state === 'paused' ? 0.35 : 1.1,
-      vignette: 0.6,
+      bloom: profile.bloom * 0.9,
+      sat: app.state === 'paused' ? 0.3 : 0.92,
+      vignette: 0.62,
       dim: menuDim * (app.state === 'paused' ? 0.7 : 1),
     });
   } else {
-    fallbackCtx.drawImage(scene, 0, 0);
+    fallbackCtx.drawImage(scene, 0, 0, cw, ch);
   }
 
   hctx.clearRect(0, 0, cw, ch);
   if (app.state === 'match' || app.state === 'paused') {
-    if (!m.demo) drawHUD(hctx, m, app.camera, cw, ch, time);
+    if (!m.demo) drawHUD(hctx, m, app.camera, cw, ch, time, app.state === 'match');
   }
   if (app.state === 'title') drawTitle(hctx, cw, ch, time);
   else if (app.state === 'setup') drawMenu(hctx, cw, ch, time, app.menu);
@@ -265,6 +292,7 @@ let last = performance.now();
 let fpsAcc = 0, fpsN = 0;
 window.__game = app; // handy for debugging from devtools
 window.__audio = audio;
+app.startMatch = startMatch;
 function frame(now) {
   const realDt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -274,8 +302,9 @@ function frame(now) {
   const t0 = performance.now();
   update(realDt);
   const t1 = performance.now();
-  render();
+  render(realDt);
   const t2 = performance.now();
+  governResolution(realDt);
   const pf = app.perf;
   pf.update += (t1 - t0 - pf.update) * 0.05;
   pf.render += (t2 - t1 - pf.render) * 0.05;
@@ -284,7 +313,8 @@ function frame(now) {
     hctx.font = `${Math.round(18 * ch / 1080)}px monospace`;
     hctx.fillStyle = '#9f9';
     hctx.textAlign = 'left';
-    hctx.fillText(`FPS ${app.fps ? app.fps.toFixed(0) : '-'}  sim ${pf.update.toFixed(1)}ms  render ${pf.render.toFixed(1)}ms  parts ${fx.parts.length}`, 10, ch - 10);
+    hctx.textBaseline = 'alphabetic';
+    hctx.fillText(`FPS ${app.fps ? app.fps.toFixed(0) : '-'}  sim ${pf.update.toFixed(1)}ms  render ${pf.render.toFixed(1)}ms  scale ${(rs * 100).toFixed(0)}%  parts ${fx.parts.length}  ${post ? post.renderer : '2D'}`, 10, ch - 10);
   }
   endFrame();
   requestAnimationFrame(frame);
@@ -293,16 +323,16 @@ function frame(now) {
 async function boot() {
   try {
     await Promise.race([
-      Promise.all([document.fonts.load('40px BlackOps'), document.fonts.load('40px Bebas')]),
+      Promise.all([document.fonts.load('40px Display'), document.fonts.load('700 40px Cond'), document.fonts.load('600 40px Cond')]),
       new Promise((r) => setTimeout(r, 1500)),
     ]);
   } catch (e) { /* fonts optional */ }
   buildArena();
   newDemo();
   setState('title');
-  // Electron allows autoplay; in a browser this waits for the first key press.
   audio.init();
+  audio.setMusicVolume(settings.music ? 0.55 : 0);
   if (audio.ready && audio.ctx.state === 'running') music.start('menu');
-  requestAnimationFrame((t) => { last = t; frame(t); });
+  requestAnimationFrame((ts) => { last = ts; frame(ts); });
 }
 boot();

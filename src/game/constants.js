@@ -1,28 +1,28 @@
-// World geometry & tuning. Units are world pixels; the field runs left → right.
-export const FIELD_W = 2400;
-export const FIELD_H = 1150;
+// World geometry & tuning. Units are world pixels.
+// Speedball 2 layout: a tall pitch, goals at the top (y = 0) and bottom (y = FIELD_H).
+export const FIELD_W = 1200;
+export const FIELD_H = 2600;
 export const CX = FIELD_W / 2;
 export const CY = FIELD_H / 2;
-export const WALL = 70; // wall thickness drawn around the field
-export const GOAL_HALF = 125; // half height of the goal mouth
-export const GOAL_DEPTH = 70;
-export const GOAL_Z = 95; // ball above this flies over the goal frame (bounces off)
+export const GOAL_HALF = 135; // half width of the goal mouth
+export const GOAL_DEPTH = 80;
+export const GOAL_Z = 100; // ball above this hits the crossbar
 
 export const GRAVITY = 1500;
 export const BALL_GRAVITY = 1150;
-export const BALL_R = 11;
-export const PLAYER_R = 22;
+export const BALL_R = 10;
+export const PLAYER_R = 21;
 
-export const PLAYER_SPEED = 330;
+export const PLAYER_SPEED = 345;
 export const CARRIER_SPEED_MUL = 0.93;
-export const SLIDE_SPEED = 640;
+export const SLIDE_SPEED = 660;
 export const SLIDE_TIME = 0.42;
 export const SLIDE_RECOVER = 0.28;
 export const JUMP_VZ = 470;
-export const THROW_MIN = 900;
-export const THROW_MAX = 1400;
+export const THROW_MIN = 950;
+export const THROW_MAX = 1450;
 export const CHARGE_TIME = 0.45;
-export const LOB_VZ = 540;
+export const LOB_VZ = 560;
 export const CATCH_R = 34;
 
 export const GOAL_POINTS = 10;
@@ -30,56 +30,59 @@ export const STAR_POINTS = 2;
 export const STAR_ROW_BONUS = 10;
 export const KO_POINTS = 5;
 
-// Arena furniture (fractions of the field).
+// Arena furniture.
 export const BUMPERS = [
-  { x: 0.2, y: 0.22 }, { x: 0.2, y: 0.78 }, { x: 0.8, y: 0.22 }, { x: 0.8, y: 0.78 },
+  { x: 0.2, y: 0.24 }, { x: 0.8, y: 0.24 }, { x: 0.2, y: 0.76 }, { x: 0.8, y: 0.76 },
 ].map((b) => ({ x: b.x * FIELD_W, y: b.y * FIELD_H, r: 34 }));
 
 export const ELECTRO = [
-  { x: 0.39, y: 0.5 }, { x: 0.61, y: 0.5 },
+  { x: 0.22, y: 0.5 }, { x: 0.78, y: 0.5 },
 ].map((b) => ({ x: b.x * FIELD_W, y: b.y * FIELD_H, r: 26 }));
 
-export const STAR_XS = [0.09, 0.2, 0.31, 0.69, 0.8, 0.91].map((f) => f * FIELD_W);
+// Stars on the left and right walls.
+export const STAR_YS = [0.1, 0.2, 0.3, 0.7, 0.8, 0.9].map((f) => f * FIELD_H);
 
-// Score multiplier ramps sit in the middle of the top & bottom walls.
-export const RAMP_HALF = 95;
-export const RAMP_DEPTH = 70;
+// Score multiplier ramps sit in the middle of the left and right walls.
+export const RAMP_HALF = 100;
 
 export const HALF_OPTIONS = [60, 90, 120];
 export const DIFFICULTIES = [
-  { name: 'RECRUE', react: 0.34, aggro: 0.35, aim: 0.55, speed: 0.92, gk: 0.55 },
-  { name: 'GUERRIER', react: 0.22, aggro: 0.6, aim: 0.75, speed: 0.97, gk: 0.72 },
-  { name: 'WARLORD', react: 0.12, aggro: 0.85, aim: 0.92, speed: 1.02, gk: 0.86 },
+  { react: 0.34, aggro: 0.35, aim: 0.55, speed: 0.92, gk: 0.55 },
+  { react: 0.22, aggro: 0.6, aim: 0.75, speed: 0.97, gk: 0.72 },
+  { react: 0.12, aggro: 0.85, aim: 0.92, speed: 1.02, gk: 0.86 },
 ];
 
+// Gritty, desaturated kits. `mark` is the team identification colour (rags, paint, lights).
 export const TEAMS = [
   {
     name: 'RUST REAVERS',
     short: 'RVR',
-    armor: '#c5541f', armorDark: '#6e2a0f', armorLight: '#f08a3c',
-    cloth: '#2c1c14', pants: '#6a4630', skin: '#b07a52', accent: '#ffb42a', glow: '#ff7a1a',
-    crest: 'mohawk', crestColor: '#e3261b',
+    mark: '#f2641e', markDark: '#7a2408', glow: '#ff7a1a', ui: '#f07030',
+    metal: '#3a3230', metalDark: '#1a1514', metalLight: '#7a6a62',
+    leather: '#241a15', pants: '#2e2622', skin: '#8e6448', boot: '#120d0b',
+    mask: 'welder',
   },
   {
-    name: 'CHROME JACKALS',
+    name: 'BONE JACKALS',
     short: 'JKL',
-    armor: '#4f7f95', armorDark: '#1d3440', armorLight: '#9cd3e6',
-    cloth: '#161c22', pants: '#3e505c', skin: '#d8d0c4', accent: '#3ff2ff', glow: '#25c8ff',
-    crest: 'skull', crestColor: '#e9e4d8',
+    mark: '#c9d4d6', markDark: '#4c5a60', glow: '#8fe8ff', ui: '#b9e2ec',
+    metal: '#5b6468', metalDark: '#1f2528', metalLight: '#9aa6aa',
+    leather: '#26282a', pants: '#34393c', skin: '#d6d0c6', boot: '#151515',
+    mask: 'warboy',
   },
 ];
 
-// Role layout for a team attacking toward +x, in field fractions.
+// Role layout for a team attacking toward +y: x = lateral fraction, y = depth from own goal.
 export const FORMATION = [
-  { role: 'GK', x: 0.035, y: 0.5 },
-  { role: 'DF', x: 0.2, y: 0.32 },
-  { role: 'DF', x: 0.2, y: 0.68 },
-  { role: 'MF', x: 0.38, y: 0.5 },
-  { role: 'FW', x: 0.56, y: 0.25 },
-  { role: 'FW', x: 0.56, y: 0.75 },
+  { role: 'GK', x: 0.5, y: 0.03 },
+  { role: 'DF', x: 0.3, y: 0.19 },
+  { role: 'DF', x: 0.7, y: 0.19 },
+  { role: 'MF', x: 0.5, y: 0.35 },
+  { role: 'FW', x: 0.24, y: 0.47 },
+  { role: 'FW', x: 0.76, y: 0.47 },
 ];
 
 export const PLAYER_NAMES = [
   ['GRIMSKULL', 'NUX', 'SLAG', 'KRANK', 'BOLTJAW', 'RUSTFANG'],
-  ['VULTCH', 'CHROMA', 'STITCH', 'HEXBONE', 'RAZR', 'DUSTWYRM'],
+  ['VULTCH', 'CHALK', 'STITCH', 'HEXBONE', 'RAZR', 'DUSTWYRM'],
 ];

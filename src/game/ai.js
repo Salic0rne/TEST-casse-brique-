@@ -1,6 +1,6 @@
 // Team + player AI: role assignment (chaser / presser / cover), carriers that run, pass, shoot,
 // go for stars and ramps, defenders that mark and slide, and a goalkeeper that reads shots.
-import { FIELD_W as W, FIELD_H as H, CX, CY, GOAL_HALF, BALL_GRAVITY, BALL_R, STAR_XS, DIFFICULTIES, PLAYER_SPEED, RAMP_HALF } from './constants.js';
+import { FIELD_W as W, FIELD_H as H, CX, CY, GOAL_HALF, BALL_GRAVITY, BALL_R, STAR_YS, DIFFICULTIES, PLAYER_SPEED, RAMP_HALF } from './constants.js';
 import { clamp, rand, chance, segDist, angleDiff, pick } from '../core/math.js';
 
 const MATE_DIFF = { ...DIFFICULTIES[1], aggro: 0.55 };
@@ -88,9 +88,9 @@ export function aiPlayerUpdate(match, p, dt) {
       const m = Math.hypot(mx, my) || 1;
       mx /= m; my /= m;
     }
-    p.intent = { mx, my };
+    p.intent.mx = mx; p.intent.my = my;
   } else {
-    p.intent = { mx: 0, my: 0 };
+    p.intent.mx = 0; p.intent.my = 0;
   }
 }
 
@@ -110,32 +110,33 @@ function formationShifted(match, p, attackBias) {
   const f = match.formationPos(p);
   const b = match.ball;
   const dir = p.team.dir;
-  let x = f.x + (b.x - CX) * 0.45 + dir * attackBias;
-  let y = f.y + (b.y - CY) * 0.22;
+  const x = f.x + (b.x - CX) * 0.22;
+  const y = f.y + (b.y - CY) * 0.45 + dir * attackBias;
   return { x: clamp(x, 60, W - 60), y: clamp(y, 50, H - 50) };
 }
 
 function carrierThink(match, p, diff) {
   const team = p.team, dir = team.dir;
-  const gx = match.oppGoalX(team);
+  const gy = match.oppGoalY(team);
   const opps = match.other(team).players.filter((o) => !o.grounded);
   const gk = match.other(team).players.find((o) => o.isGK);
-  const dx = Math.abs(gx - p.x);
+  const dy = Math.abs(gy - p.y);
   let nearest = Infinity, inFront = false;
   for (const o of opps) {
     const d = Math.hypot(o.x - p.x, o.y - p.y);
-    if (d < nearest) { nearest = d; inFront = (o.x - p.x) * dir > -20; }
+    if (d < nearest) { nearest = d; inFront = (o.y - p.y) * dir > -20; }
   }
 
   // Shoot
-  const angleOK = Math.abs(p.y - CY) < 360;
-  if ((dx < 560 && angleOK) || (dx < 820 && angleOK && chance(0.16 + diff.aggro * 0.12) && laneClear(p, { x: gx, y: CY }, opps, 45))) {
-    const gkY = gk ? gk.y : CY;
-    const side = gkY > CY ? -1 : 1;
+  const angleOK = Math.abs(p.x - CX) < 360;
+  const pressuredNow = nearest < 110;
+  if ((dy < 640 && angleOK) || (dy < 950 && angleOK && (chance(0.22 + diff.aggro * 0.15) || (pressuredNow && chance(0.45))) && laneClear(p, { x: CX, y: gy }, opps, 40))) {
+    const gkX = gk ? gk.x : CX;
+    const side = gkX > CX ? -1 : 1;
     const err = (1 - diff.aim) * rand(-110, 110);
-    const ty = CY + side * (GOAL_HALF - 30) + err;
-    const lob = gk && Math.abs(gk.x - gx) > 110 && dx < 650 && chance(0.4);
-    match.throwBall(p, { x: gx, y: ty, shot: true }, rand(0.75, 1), lob);
+    const tx = CX + side * (GOAL_HALF - 30) + err;
+    const lob = gk && Math.abs(gk.y - gy) > 110 && dy < 650 && chance(0.4);
+    match.throwBall(p, { x: tx, y: gy, shot: true }, rand(0.75, 1), lob);
     return;
   }
 
@@ -149,26 +150,25 @@ function carrierThink(match, p, diff) {
     }
   }
 
-  // Opportunistic: stars and multiplier ramp when unpressured
+  // Opportunistic: stars and multiplier ramp on the side walls when unpressured
   if (nearest > 200 && p.holdT > 0.4 && chance(0.3)) {
-    const wallY = p.y < CY ? 0 : H;
-    const row = match.stars[p.y < CY ? 'top' : 'bottom'];
-    if (team.mult < 2 && Math.abs(p.x - CX) < 480 && Math.abs(p.y - wallY) < 460) {
-      match.throwBall(p, { x: CX + (p.x - CX) * 0.2, y: wallY }, 0.7, false);
+    const wallX = p.x < CX ? 0 : W;
+    const row = match.stars[p.x < CX ? 'left' : 'right'];
+    if (team.mult < 2 && Math.abs(p.y - CY) < 480 && Math.abs(p.x - wallX) < 460) {
+      match.throwBall(p, { x: wallX, y: CY + (p.y - CY) * 0.2 }, 0.7, false);
       return;
     }
-    const targets = STAR_XS.map((sx, i) => ({ sx, i })).filter((s) => row[s.i] !== team.idx && Math.hypot(s.sx - p.x, wallY - p.y) < 520);
-    if (targets.length && Math.abs(p.y - wallY) < 420) {
-      const s = pick(targets);
-      match.throwBall(p, { x: s.sx, y: wallY }, 0.75, false);
+    const targets = STAR_YS.map((sy, i) => ({ sy, i })).filter((st) => row[st.i] !== team.idx && Math.hypot(wallX - p.x, st.sy - p.y) < 520);
+    if (targets.length && Math.abs(p.x - wallX) < 420) {
+      const st = pick(targets);
+      match.throwBall(p, { x: wallX, y: st.sy }, 0.75, false);
       return;
     }
   }
 
   // Run toward goal, drifting to the middle lane.
-  const ty = CY + (p.y - CY) * 0.6;
-  p.ai.tx = gx - dir * 140;
-  p.ai.ty = ty;
+  p.ai.tx = CX + (p.x - CX) * 0.6;
+  p.ai.ty = gy - dir * 140;
   p.ai.urgent = true;
 }
 
@@ -193,8 +193,8 @@ function bestPass(match, p, opps) {
       mateThreat = Math.min(mateThreat, Math.hypot(o.x - m.x, o.y - m.y));
     }
     const open = clamp((minLane - 20) / 70, 0, 1);
-    const progress = (m.x - p.x) * dir;
-    const score = progress * 0.7 + open * 260 + Math.min(mateThreat, 260) - d * 0.15;
+    const progress = (m.y - p.y) * dir;
+    const score = progress * 1.0 + open * 260 + Math.min(mateThreat, 260) - d * 0.15;
     if (!best || score > best.score) best = { m, d, open, score };
   }
   return best;
@@ -206,11 +206,11 @@ function supportThink(match, p) {
   const bias = p.role === 'FW' ? 360 : p.role === 'MF' ? 250 : 140;
   const t = formationShifted(match, p, bias);
   // Make diagonal runs & keep spacing from the carrier.
-  t.y += Math.sin(match.time * 0.9 + p.idx * 2) * 90;
+  t.x += Math.sin(match.time * 0.9 + p.idx * 2) * 90;
   const dx = t.x - carrier.x, dy = t.y - carrier.y, d = Math.hypot(dx, dy);
   if (d < 200) { t.x += (dx / (d || 1)) * 140; t.y += (dy / (d || 1)) * 140; }
-  const og = match.oppGoalX(team);
-  if (Math.abs(t.x - og) < 170) t.x = og - team.dir * 170;
+  const og = match.oppGoalY(team);
+  if (Math.abs(t.y - og) < 170) t.y = og - team.dir * 170;
   p.ai.tx = clamp(t.x, 50, W - 50);
   p.ai.ty = clamp(t.y, 50, H - 50);
 }
@@ -218,12 +218,12 @@ function supportThink(match, p) {
 function defendThink(match, p, diff) {
   const T = p.team.ai;
   const c = match.ball.owner;
-  const own = { x: match.ownGoalX(p.team), y: CY };
+  const own = { x: CX, y: match.ownGoalY(p.team) };
   if (p === T.presser) {
     const px = c.x + c.vx * 0.3, py = c.y + c.vy * 0.3;
     p.ai.tx = px; p.ai.ty = py; p.ai.urgent = true;
     const d = Math.hypot(c.x - p.x, c.y - p.y);
-    if (d < 115 && d > 20 && p.slideCD <= 0 && c.z < 20 && chance(diff.aggro)) {
+    if (d < 105 && d > 20 && p.slideCD <= 0 && c.z < 20 && chance(diff.aggro * 0.75)) {
       aimSlide(p, px, py, diff);
     }
     return;
@@ -280,7 +280,7 @@ function looseThink(match, p, diff) {
 function aimSlide(p, tx, ty, diff) {
   const a = Math.atan2(ty - p.y, tx - p.x) + (1 - diff.aim) * rand(-0.35, 0.35);
   p.facing = a;
-  p.intent = { mx: Math.cos(a), my: Math.sin(a) };
+  p.intent.mx = Math.cos(a); p.intent.my = Math.sin(a);
   p.slide();
 }
 
@@ -289,60 +289,60 @@ export function gkUpdate(match, p, dt) {
   if (match.phase !== 'play') return;
   const b = match.ball;
   const team = p.team, dir = team.dir;
-  const gx = match.ownGoalX(team);
-  const homeX = gx + dir * 46;
+  const gy = match.ownGoalY(team);
+  const homeY = gy + dir * 46;
   const ai = p.ai;
   const skill = team.human ? 0.8 : match.diff.gk;
-  if (p.state !== 'run') { p.intent = { mx: 0, my: 0 }; return; }
+  if (p.state !== 'run') { p.intent.mx = 0; p.intent.my = 0; return; }
 
   if (p.hasBall) {
-    p.intent = { mx: 0, my: 0 };
-    p.facing = dir > 0 ? 0 : Math.PI;
+    p.intent.mx = 0; p.intent.my = 0;
+    p.facing = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
     if (!ai.holdFor) ai.holdFor = rand(0.6, 1.1);
     if (p.holdT > ai.holdFor) {
       ai.holdFor = 0;
       const opps = match.other(team).players.filter((o) => !o.grounded);
       const pass = bestPass(match, p, opps);
       if (pass) match.throwBall(p, { x: pass.m.x, y: pass.m.y, mate: pass.m }, 0.7, pass.open < 0.6, true);
-      else match.throwBall(p, { x: gx + dir * 800, y: CY + rand(-300, 300) }, 0.8, true);
+      else match.throwBall(p, { x: CX + rand(-300, 300), y: gy + dir * 800 }, 0.8, true);
     }
     return;
   }
 
-  let tx = homeX, ty = CY + (b.y - CY) * 0.3;
+  let tx = CX + (b.x - CX) * 0.3, ty = homeY;
   let urgent = false;
-  const towardGoal = b.vx * -dir > 120 && !b.owner;
+  const towardGoal = b.vy * -dir > 120 && !b.owner;
   if (towardGoal) {
-    const t = (homeX - b.x) / b.vx;
-    if (t > 0 && t < 1.4) {
-      let yp = b.y + b.vy * t;
-      if (yp < 0) yp = -yp; if (yp > H) yp = 2 * H - yp;
-      ty = yp;
+    const tt = (homeY - b.y) / b.vy;
+    if (tt > 0 && tt < 1.4) {
+      let xp = b.x + b.vx * tt;
+      if (xp < 0) xp = -xp;
+      if (xp > W) xp = 2 * W - xp;
       urgent = true;
-      const reachY = clamp(yp, CY - GOAL_HALF - 15, CY + GOAL_HALF + 15);
-      const gap = reachY - p.y;
-      const zAt = b.z + b.vz * t - 0.5 * BALL_GRAVITY * t * t;
-      if (Math.abs(gap) > 38 && t < 0.3 + skill * 0.12 && Math.abs(yp - CY) < GOAL_HALF + 25 && zAt < 110) {
+      const reachX = clamp(xp, CX - GOAL_HALF - 15, CX + GOAL_HALF + 15);
+      const gap = reachX - p.x;
+      const zAt = b.z + b.vz * tt - 0.5 * BALL_GRAVITY * tt * tt;
+      if (Math.abs(gap) > 38 && tt < 0.3 + skill * 0.12 && Math.abs(xp - CX) < GOAL_HALF + 25 && zAt < 110) {
         if (chance(0.4 + skill * 0.6)) p.dive(Math.sign(gap));
       }
-      ty = reachY;
+      tx = reachX;
     }
-  } else if (!b.owner && Math.hypot(b.x - gx, b.y - CY) < 300 && b.z < 70) {
+  } else if (!b.owner && Math.hypot(b.x - CX, b.y - gy) < 300 && b.z < 70) {
     tx = b.x; ty = b.y; urgent = true;
   } else if (b.owner && b.owner.team !== team) {
     const c = b.owner;
-    const d = Math.hypot(c.x - gx, c.y - CY);
+    const d = Math.hypot(c.x - CX, c.y - gy);
     if (d < 650) {
       // Narrow the angle.
       const k = clamp(90 - d * 0.05, 45, 90);
-      tx = gx + ((c.x - gx) / d) * k;
-      ty = CY + ((c.y - CY) / d) * k;
+      tx = CX + ((c.x - CX) / d) * k;
+      ty = gy + ((c.y - gy) / d) * k;
     }
   }
-  tx = dir > 0 ? clamp(tx, 20, 260) : clamp(tx, W - 260, W - 20);
-  ty = clamp(ty, CY - GOAL_HALF - 60, CY + GOAL_HALF + 60);
+  ty = dir > 0 ? clamp(ty, 20, 260) : clamp(ty, H - 260, H - 20);
+  tx = clamp(tx, CX - GOAL_HALF - 60, CX + GOAL_HALF + 60);
   const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
   const sp = urgent ? 1.25 : Math.min(1, d / 50);
-  p.intent = d > 4 ? { mx: (dx / d) * sp, my: (dy / d) * sp } : { mx: 0, my: 0 };
+  if (d > 4) { p.intent.mx = (dx / d) * sp; p.intent.my = (dy / d) * sp; } else { p.intent.mx = 0; p.intent.my = 0; }
   if (!urgent || d < 4) p.facing += angleDiff(p.facing, Math.atan2(b.y - p.y, b.x - p.x)) * Math.min(1, dt * 8);
 }
