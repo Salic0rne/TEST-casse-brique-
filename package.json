@@ -1,0 +1,23 @@
+{
+  "name": "steel-carnage",
+  "productName": "STEEL CARNAGE",
+  "version": "0.1.0",
+  "description": "Post-apocalyptic brutal arena sport inspired by Speedball 2",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "web": "node tools/serve.js",
+    "dist": "npx --yes electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5"
+  },
+  "build": {
+    "appId": "com.steelcarnage.game",
+    "productName": "STEEL CARNAGE",
+    "files": ["electron/**", "src/**", "assets/**", "index.html"],
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg" },
+    "linux": { "target": "AppImage" }
+  }
+}

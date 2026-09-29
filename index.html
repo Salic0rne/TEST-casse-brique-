@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>STEEL CARNAGE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:">
+<style>
+  @font-face { font-family: 'BlackOps'; src: url('assets/fonts/BlackOpsOne-Regular.ttf') format('truetype'); }
+  @font-face { font-family: 'Bebas'; src: url('assets/fonts/BebasNeue-Regular.ttf') format('truetype'); }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #07040a; overflow: hidden; }
+  body { cursor: none; user-select: none; }
+  #stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #wrap { position: relative; }
+  #wrap canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+  #fontprobe { position: absolute; opacity: 0; pointer-events: none; font-family: 'BlackOps'; }
+  #fontprobe span { font-family: 'Bebas'; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="wrap"></div></div>
+<div id="fontprobe">A<span>B</span></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
