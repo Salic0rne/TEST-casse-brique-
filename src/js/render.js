@@ -10,6 +10,9 @@ export class Renderer {
     this.canvas = canvas; this.ctx = canvas.getContext('2d', { alpha: false });
     this.sx = 1; this.ox = 0; this.oy = 0;
     this.vig = this._makeVignette();
+    this.bloom = true; this.bloomAmount = 0.5;
+    this.bloomC = document.createElement('canvas'); this.bloomC.width = 480; this.bloomC.height = 270;
+    this.bloomX = this.bloomC.getContext('2d');
     this.resize();
     window.addEventListener('resize', () => this.resize());
   }
@@ -93,6 +96,7 @@ export class Renderer {
     ctx.restore();
 
     // ----- post
+    this.bloomPass(m);
     ctx.globalAlpha = 1; ctx.drawImage(this.vig, 0, 0, VIEW_W, VIEW_H);
     if (fx.flash > 0.01) { ctx.globalAlpha = Math.min(1, fx.flash); ctx.fillStyle = fx.flashColor; ctx.fillRect(0, 0, VIEW_W, VIEW_H); ctx.globalAlpha = 1; }
     // alerte fin de période
@@ -100,6 +104,24 @@ export class Renderer {
       const a = (1 - m.clock / 10) * (0.12 + 0.1 * Math.sin(time * 8));
       ctx.fillStyle = `rgba(255,60,50,${Math.max(0, a)})`; ctx.fillRect(0, 0, VIEW_W, 14); ctx.fillRect(0, VIEW_H - 14, VIEW_W, 14); ctx.fillRect(0, 0, 14, VIEW_H); ctx.fillRect(VIEW_W - 14, 0, 14, VIEW_H);
     }
+  }
+
+  // Bloom : on isole les zones très claires d'une version réduite de l'image, puis on les ré-ajoute (halo).
+  bloomPass(m) {
+    if (!this.bloom) return;
+    const ctx = this.ctx, bx = this.bloomX, cw = this.canvas.width, ch = this.canvas.height;
+    const boost = m && (m.phase === 'goal' || m.phase === 'replay') ? 1.5 : 1;
+    try {
+      bx.setTransform(1, 0, 0, 1, 0, 0); bx.globalCompositeOperation = 'copy';
+      bx.imageSmoothingEnabled = true; bx.imageSmoothingQuality = 'high';
+      bx.filter = 'brightness(0.6) contrast(2.6) saturate(1.25)';
+      bx.drawImage(this.canvas, 0, 0, cw, ch, 0, 0, 480, 270);
+      bx.filter = 'none';
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = this.bloomAmount * boost;
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(this.bloomC, 0, 0, 480, 270, 0, 0, cw, ch);
+      ctx.restore();
+    } catch (e) { this.bloom = false; }
   }
 
   drawFloorLights(ctx, m, time) {
@@ -249,9 +271,9 @@ export class Renderer {
       // jauge de charge
       if (p.chargeT > 0.12) {
         const k = Math.min(1, p.chargeT / 0.7);
-        ctx.save(); ctx.translate(p.x, p.y - p.z - 118);
-        rrPath(ctx, -30, 0, 60, 11, 5); ctx.fillStyle = 'rgba(10,6,12,0.75)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = OUT; ctx.stroke();
-        rrPath(ctx, -28, 2, 56 * k, 7, 3); ctx.fillStyle = k > 0.85 ? '#ffe36a' : k > 0.5 ? PAL.mustard : PAL.salmon; ctx.fill();
+        ctx.save(); ctx.translate(p.x, p.y + 24);
+        rrPath(ctx, -34, 0, 68, 13, 6); ctx.fillStyle = 'rgba(10,6,12,0.8)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = OUT; ctx.stroke();
+        rrPath(ctx, -31, 3, 62 * k, 7, 3); ctx.fillStyle = k > 0.85 ? '#ffe36a' : k > 0.5 ? PAL.mustard : PAL.salmon; ctx.fill();
         ctx.restore();
       }
       // flèche de visée quand on tient la balle

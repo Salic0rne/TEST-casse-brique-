@@ -14,6 +14,7 @@ require('fs').mkdirSync(out, { recursive: true });
   const errors = [];
   page.on('pageerror', (e) => errors.push('PAGEERR ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 4).join('\n')));
   page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) errors.push(m.type() + ': ' + m.text()); });
+  await page.addInitScript(() => { window.__HQ = true; });
   const scenario = require(path.resolve(process.argv[2]));
   try { await scenario({ page, out, sleep: (ms) => new Promise((r) => setTimeout(r, ms)) }); } catch (e) { errors.push('SCENARIO ' + e.stack); }
   console.log(errors.length ? errors.join('\n') : 'no errors');

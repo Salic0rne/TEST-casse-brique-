@@ -19,6 +19,8 @@ export class Match {
     this.halfLen = o.duration ?? 90;
     this.onEnd = o.onEnd || (() => {});
     this.defs = [o.teamA, o.teamB];
+    // Les stats des équipes (1..5) influencent réellement le jeu
+    this.mul = this.defs.map((d) => ({ spd: 0.92 + d.stats.speed * 0.03, pow: 0.94 + d.stats.power * 0.03, def: d.stats.defense }));
     this.t = 0; this.acc = 0; this.timeScale = 1; this.targetScale = 1;
     this.half = 1; this.clock = this.halfLen; this.overtime = false;
     this.phase = 'intro'; this.phaseT = 0;
@@ -426,7 +428,8 @@ export class Match {
 
     this.airborne(p, dt);
     const isHumanCtrl = t.human >= 0 && t.ctrl === p;
-    const base = p.role === 'GK' ? D.keeper : ((p.role === 'FWD' ? 330 : 312) * (isHumanCtrl ? 1.04 : D.speed)) ;
+    const mul = this.mul[p.team];
+    const base = p.role === 'GK' ? D.keeper * (0.92 + mul.def * 0.03) : ((p.role === 'FWD' ? 330 : 312) * (isHumanCtrl ? 1.04 : D.speed) * mul.spd);
     let maxSp = base;
 
     // ----- états bloquants
@@ -582,7 +585,7 @@ export class Match {
 
   tackleHit(a, o, power) {
     const ta = this.teams[a.team];
-    const dur = (a.powerT > 0 ? 1.9 : 1.35) * (o.role === 'GK' ? 0.6 : 1);
+    const dur = (a.powerT > 0 ? 1.9 : 1.35) * (o.role === 'GK' ? 0.6 : 1) * (1.12 - 0.035 * this.mul[o.team].def) * (0.94 + 0.03 * this.defs[a.team].stats.power);
     o.stun = dur; o.vx = a.slideDx * 380 * power; o.vy = a.slideDy * 380 * power; o.vz = 240;
     const had = o.hasBall;
     if (had) this.dropBall(o, a.slideDx * 260, a.slideDy * 260, 380);
@@ -645,7 +648,7 @@ export class Match {
     }
     const l = Math.hypot(ax, ay) || 1; ax /= l; ay /= l;
     let speed, vz;
-    const boost = p.powerT > 0 ? 1.28 : 1;
+    const boost = (p.powerT > 0 ? 1.28 : 1) * this.mul[p.team].pow;
     if (lob) { speed = lerp(520, 1150, power) * (cmd.aim && cmd.speed ? 1 : 1); if (cmd.speed) speed = cmd.speed; vz = 760; }
     else { speed = lerp(680, 1420, power) * boost; vz = 90 + power * 60; }
     speed = Math.min(speed, MAX_BALL);

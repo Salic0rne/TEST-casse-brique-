@@ -287,6 +287,7 @@ export class Arena {
     for (let i = list.length - 1; i >= 0; i--) {
       const c = list[i];
       if (c.x < view.x0 - 40 || c.x > view.x1 + 40 || c.y < view.y0 - 60 || c.y > view.y1) continue;
+      if (this.low && (c.row > 2 || (i & 1))) continue;
       const cheer = scoredSide === c.side ? Math.min(1.4, excite + 0.5) : excite * (scoredSide >= 0 ? 0.45 : 1);
       const amp = 2 + cheer * 11, bob = Math.abs(Math.sin(t * c.sp * (0.5 + cheer * 0.6) + c.ph)) * amp;
       const y = c.y - bob;

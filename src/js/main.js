@@ -34,11 +34,11 @@ class App {
   }
 
   loadSettings() {
-    const d = { music: 0.6, sfx: 0.85, shake: true, replay: true, teamA: 0, teamB: 1, diff: 1, dur: 1 };
+    const d = { music: 0.6, sfx: 0.85, shake: true, replay: true, bloom: true, teamA: 0, teamB: 1, diff: 1, dur: 1 };
     try { return Object.assign(d, JSON.parse(localStorage.getItem('sba-settings') || '{}')); } catch (e) { return d; }
   }
   saveSettings() { try { localStorage.setItem('sba-settings', JSON.stringify(this.settings)); } catch (e) { /* ignore */ } }
-  applyAudio() { this.audio.setVolumes(this.settings.music, this.settings.sfx); this.fx.shakeEnabled = this.settings.shake; }
+  applyAudio() { this.audio.setVolumes(this.settings.music, this.settings.sfx); this.fx.shakeEnabled = this.settings.shake; this.renderer.bloom = this.settings.bloom !== false; }
   toggleFullscreen() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { /* ignore */ } }
   closeOverlay() { if (this.scene && this.scene.closeOverlay) this.scene.closeOverlay(); }
 
@@ -83,6 +83,11 @@ class App {
     const dt = Math.min(0.05, Math.max(0.0001, (now - (this.last || now)) / 1000)); this.last = now;
     this.fps += (1 / dt - this.fps) * 0.05;
     this.time += dt;
+    // garde-fou performance : si le jeu tourne durablement sous ~38 fps, on allège (bloom off, foule réduite)
+    if (!this.hq && !this.lowQuality) {
+      this.slowT = this.fps < 38 && this.time > 4 ? (this.slowT || 0) + dt : 0;
+      if (this.slowT > 3.5) { this.lowQuality = true; this.renderer.bloom = false; this.arena.low = true; }
+    }
     this.input.poll(dt);
     // transition
     const tr = this.trans;
@@ -125,6 +130,7 @@ async function boot() {
   try { await Promise.all([document.fonts.load('40px Bangers'), document.fonts.load('40px "Lilita One"')]); } catch (e) { /* polices système */ }
   const app = new App(); window.__app = app;
   const q = new URLSearchParams(location.search);
+  if (q.get('hq') || window.__HQ) app.hq = true;   // désactive le garde-fou de performance (captures, tests)
   app.go('title');
   if (q.get('test') === 'match') {
     app.go('match', { mode2p: false, teamA: TEAMS[+q.get('a') || 0], teamB: TEAMS[+q.get('b') || 1], difficulty: 1, duration: +q.get('dur') || 90 });

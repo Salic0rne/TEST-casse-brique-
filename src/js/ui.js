@@ -214,25 +214,28 @@ export class SetupScene {
 
 // ---------------------------------------------------------------- Options
 export class OptionsScene {
-  enter(app, args) { this.app = app; this.from = args.from || 'title'; this.menu = new Menu(7); this.t = 0; this.overlay = !!args.overlay; this.child = null; }
+  enter(app, args) { this.app = app; this.from = args.from || 'title'; this.menu = new Menu(8); this.t = 0; this.overlay = !!args.overlay; this.child = null; }
   update(dt) {
     const app = this.app, s = app.settings; this.t += dt;
     if (this.child) { this.child.update(dt); if (this.child.done) this.child = null; return; }
     const r = this.menu.update(app);
     const sel = this.menu.sel, d = r.dx;
+    const toggle = (k) => { s[k] = !s[k]; app.applyAudio(); app.audio.sfx('ui-tick'); };
     if (d) {
       if (sel === 0) { s.music = clamp(Math.round((s.music + d * 0.1) * 10) / 10, 0, 1); app.applyAudio(); app.audio.sfx('ui-tick'); }
       if (sel === 1) { s.sfx = clamp(Math.round((s.sfx + d * 0.1) * 10) / 10, 0, 1); app.applyAudio(); app.audio.sfx('bumper'); }
-      if (sel === 2) { s.shake = !s.shake; app.applyAudio(); app.audio.sfx('ui-tick'); }
-      if (sel === 3) { s.replay = !s.replay; app.audio.sfx('ui-tick'); }
-      if (sel === 4) { app.toggleFullscreen(); }
+      if (sel === 2) toggle('shake');
+      if (sel === 3) toggle('bloom');
+      if (sel === 4) toggle('replay');
+      if (sel === 5) app.toggleFullscreen();
     }
     if (r.ok) {
-      if (sel === 2) { s.shake = !s.shake; app.applyAudio(); app.audio.sfx('ui-tick'); }
-      else if (sel === 3) { s.replay = !s.replay; app.audio.sfx('ui-tick'); }
-      else if (sel === 4) app.toggleFullscreen();
-      else if (sel === 5) { this.child = new ControlsScene(); this.child.enter(app, { overlay: this.overlay }); app.audio.sfx('ui-ok'); }
-      else if (sel === 6) this.exit();
+      if (sel === 2) toggle('shake');
+      else if (sel === 3) toggle('bloom');
+      else if (sel === 4) toggle('replay');
+      else if (sel === 5) app.toggleFullscreen();
+      else if (sel === 6) { this.child = new ControlsScene(); this.child.enter(app, { overlay: this.overlay }); app.audio.sfx('ui-ok'); }
+      else if (sel === 7) this.exit();
     }
     if (app.input.nav.back) this.exit();
   }
@@ -242,11 +245,11 @@ export class OptionsScene {
     if (this.child) { this.child.render(r, time); return; }
     if (!this.overlay) menuBackdrop(app, r, 0.78);
     ctx.save(); ctx.translate(VIEW_W / 2, 90); comicText(ctx, 'OPTIONS', 0, 0, 100, PAL.mustardLight, OUT); ctx.restore();
-    const rows = [['MUSIQUE', s.music], ['EFFETS SONORES', s.sfx], ['SECOUSSES D\'ÉCRAN', s.shake ? 'OUI' : 'NON'], ['REPLAYS DES BUTS', s.replay ? 'OUI' : 'NON'], ['PLEIN ÉCRAN', document.fullscreenElement ? 'OUI' : 'NON'], ['COMMANDES & RÈGLES', '›'], ['RETOUR', null]];
+    const rows = [['MUSIQUE', s.music], ['EFFETS SONORES', s.sfx], ['SECOUSSES D\'ÉCRAN', s.shake ? 'OUI' : 'NON'], ['LUEUR (BLOOM)', s.bloom ? 'OUI' : 'NON'], ['REPLAYS DES BUTS', s.replay ? 'OUI' : 'NON'], ['PLEIN ÉCRAN', document.fullscreenElement ? 'OUI' : 'NON'], ['COMMANDES & RÈGLES', '›'], ['RETOUR', null]];
     rows.forEach(([lab, v], i) => {
-      const isSel = this.menu.sel === i, y = 178 + i * 84;
-      if (v === null) { button(ctx, lab, VIEW_W / 2, y + 20, 380, 66, isSel, time, this.menu.rects, i); return; }
-      const w = 760, h = 64, x = VIEW_W / 2 - w / 2;
+      const isSel = this.menu.sel === i, y = 168 + i * 76;
+      if (v === null) { button(ctx, lab, VIEW_W / 2, y + 22, 380, 62, isSel, time, this.menu.rects, i); return; }
+      const w = 760, h = 58, x = VIEW_W / 2 - w / 2;
       ctx.save(); ctx.translate(VIEW_W / 2, y + h / 2); if (isSel) ctx.scale(1.03, 1.03);
       skewPanel(ctx, -w / 2 + 5, -h / 2 + 6, w, h, 18, OUT, 0.1);
       skewPanel(ctx, -w / 2, -h / 2, w, h, 18, isSel ? PAL.mustard : PAL.cream, 5);
